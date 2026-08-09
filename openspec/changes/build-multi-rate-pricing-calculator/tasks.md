@@ -83,9 +83,9 @@
 ## 9. Document Editor Metadata and Read-Only State
 
 - [x] 9.1 Build the protected document route with owner-safe not-found handling, full initial server snapshot, breadcrumb, output menu, status, save indicator, and draft Finalize action.
-- [ ] 9.2 Build inline title, Customer, and Issue date controls with restrained labels/required indicators, local draft values that persist only through Save, and field-associated errors.
-- [ ] 9.3 Implement the explicit document save coordinator with dirty metadata/line tracking, server-version sequencing, partial-failure retention, saved/error states, conflict refetching, and stale-response rejection.
-- [ ] 9.4 Require a clean saved draft before publishing and handle `DOCUMENT_FINALIZED` by showing the server message, refetching, and switching to read-only.
+- [x] 9.2 Build inline title, Customer, and Issue date controls with restrained labels/required indicators, local draft values that persist only through Save, and field-associated errors.
+- [x] 9.3 Implement the explicit document save coordinator with dirty metadata/line tracking, server-version sequencing, partial-failure retention, saved/error states, conflict refetching, and stale-response rejection.
+- [x] 9.4 Require a clean saved draft before publishing and handle `DOCUMENT_FINALIZED` by showing the server message, refetching, and switching to read-only.
 - [x] 9.5 Render finalized metadata as non-input text, replace the CTA with a clear Finalized state, keep line mutation controls hidden, and retain finalized print/export/template/change-to-draft/delete actions.
 - [ ] 9.6 Add stable editor loading/not-found/error presentation and tests for metadata sequencing, inline validation, and finalized read-only rendering.
 
@@ -94,9 +94,9 @@
 - [x] 10.1 Build the non-virtualized semantic grid with sticky header, specified editable/calculated columns and widths, muted calculated cells, tabular money, row hover, and a contained overflow strategy.
 - [ ] 10.2 Implement stable per-cell server/draft/error state keyed by line ID, exact local Decimal previews, selection of numeric text on appropriate focus, and no cursor/focus loss during reconciliation.
 - [x] 10.3 Build compact None/%/Fixed discount editing that clears incompatible values and an integrated percentage tax editor without ugly number spinners.
-- [ ] 10.4 Keep all text/numeric cell edits local until Save, show immediate Decimal previews and local errors, and reconcile the full committed snapshot without total-panel layout shift.
-- [ ] 10.5 Implement native Tab/Shift+Tab editable-cell traversal, request-free Enter-to-next, Escape restore, and explicit focus refs in Description/Qty/Unit price/Discount/Tax order.
-- [ ] 10.6 Implement Shift+Enter insert directly below the active row, then focus new Description; implement Add line with the same committed focus behavior while preserving other unsaved drafts.
+- [x] 10.4 Keep all text/numeric cell edits local until Save, show immediate Decimal previews and local errors, and reconcile the full committed snapshot without total-panel layout shift.
+- [x] 10.5 Implement native Tab/Shift+Tab editable-cell traversal, request-free Enter-to-next, Escape restore, and explicit focus refs in Description/Qty/Unit price/Discount/Tax order.
+- [x] 10.6 Implement Shift+Enter insert directly below the active row, then focus new Description; implement Add line with the same committed focus behavior while preserving other unsaved drafts.
 - [ ] 10.7 Implement row removal with an accessible action, appropriate confirmation only where ambiguity warrants it, and deterministic same-column next/previous/Add focus restoration.
 - [x] 10.8 Build the aligned totals panel for subtotal, negative discount, tax, divider, and emphasized grand total, driven by immediate preview then authoritative reconciliation.
 - [x] 10.9 Remove all line inputs/add/remove controls for finalized documents while preserving the same readable table geometry.
@@ -105,7 +105,7 @@
 ## 11. Finalization Experience
 
 - [x] 11.1 Build the accessible finalize dialog with exact immutability/template copy, focus trap/restoration, Cancel and Finalize document actions, and duplicate-submit protection.
-- [ ] 11.2 Require users to Save before Publish, submit the current saved version, display indexed validation errors at their fields, and announce meaningful success or failure.
+- [x] 11.2 Require users to Save before Publish, submit the current saved version, display indexed validation errors at their fields, and announce meaningful success or failure.
 - [x] 11.3 Verify direct metadata and line add/patch/delete requests against a finalized document receive the exact HTTP 409 envelope while explicit reversal and deletion routes remain owner-scoped.
 
 ## 12. Summary Reports

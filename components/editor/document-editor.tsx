@@ -9,6 +9,8 @@ import {
   Plus,
   Printer,
   RotateCcw,
+  Save,
+  Send,
   Trash2,
 } from "lucide-react";
 import type { DocumentDetail } from "@/lib/domain/types";
@@ -45,7 +47,6 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
                   onChange={(event) =>
                     editor.saveMeta({ title: event.target.value })
                   }
-                  onBlur={() => void editor.commitMeta()}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") event.currentTarget.blur();
                   }}
@@ -81,7 +82,6 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
                     onChange={(event) =>
                       editor.saveMeta({ customer: event.target.value })
                     }
-                    onBlur={() => void editor.commitMeta()}
                   />
                   <span
                     className="field-error"
@@ -109,7 +109,6 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
                     onChange={(event) =>
                       editor.saveMeta({ issueDate: event.target.value })
                     }
-                    onBlur={() => void editor.commitMeta()}
                   />
                   <span
                     className="field-error"
@@ -130,15 +129,6 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
           </div>
         </div>
         <div className="editor-actions">
-          <span
-            className={`save-state${editor.error ? " needs-attention" : ""}`}
-            aria-live="polite"
-          >
-            {editor.saving && (
-              <LoaderCircle size={14} className="spin" aria-hidden="true" />
-            )}
-            {editor.saveState}
-          </span>
           <div className="menu-wrap">
             <button
               className="button actions-button"
@@ -199,14 +189,31 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
             )}
           </div>
           {doc.status === "draft" ? (
-            <button
-              className="button primary"
-              type="button"
-              disabled={editor.working || editor.isSaving || editor.pendingMeta}
-              onClick={() => editor.setConfirm(true)}
-            >
-              Publish
-            </button>
+            <>
+              <button
+                className="button"
+                type="button"
+                disabled={
+                  !editor.hasUnsavedChanges || editor.saving || editor.working
+                }
+                onClick={() => void editor.saveDocument()}
+              >
+                {editor.saving ? (
+                  <LoaderCircle size={15} className="spin" aria-hidden="true" />
+                ) : (
+                  <Save size={15} aria-hidden="true" />
+                )}
+                {editor.saving ? "Saving…" : "Save"}
+              </button>
+              <button
+                className="button primary"
+                type="button"
+                disabled={editor.working || editor.saving}
+                onClick={editor.requestPublish}
+              >
+                <Send size={15} aria-hidden="true" /> Publish
+              </button>
+            </>
           ) : (
             <span className="status finalized">Final</span>
           )}
@@ -240,7 +247,8 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
                     readOnly={doc.status === "finalized"}
                     lineIndex={index}
                     fieldErrors={fieldErrors}
-                    onSave={editor.saveLine}
+                    onChange={editor.updateLineDraft}
+                    onReset={editor.resetLineDraft}
                     onAdd={() => editor.addLine(line.id)}
                     onRemove={() => editor.setRemoveTarget(line)}
                   />
@@ -254,7 +262,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
                 data-action="add-line"
                 className="button ghost small"
                 type="button"
-                disabled={editor.working}
+                disabled={editor.working || editor.saving}
                 onClick={() => void editor.addLine()}
               >
                 <Plus size={15} /> Add line item
@@ -287,7 +295,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
         title="Publish this document?"
         description="Publishing makes the document read-only until you change it back to a draft. You can still print it or use it as a template."
         confirmLabel="Publish document"
-        pending={editor.working || editor.isSaving || editor.pendingMeta}
+        pending={editor.working || editor.saving}
         onCancel={() => editor.setConfirm(false)}
         onConfirm={() => void editor.finalize()}
       />

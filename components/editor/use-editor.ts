@@ -18,6 +18,14 @@ import {
   type Metadata,
 } from "@/components/editor/editor-types";
 
+type ApiDocumentResponse = {
+  data?: DocumentDetail;
+  error?: { message?: string; fields?: FieldErrors };
+};
+
+const sameValue = (left: unknown, right: unknown) =>
+  JSON.stringify(left) === JSON.stringify(right);
+
 export function useEditor(initial: DocumentDetail) {
   const router = useRouter();
   const [doc, setDoc] = useState(initial);
@@ -28,9 +36,11 @@ export function useEditor(initial: DocumentDetail) {
     issueDate: initial.issueDate,
   });
   const metadataRef = useRef(metadata);
-  const [pendingMeta, setPendingMeta] = useState(false);
+  const metadataDirty = useRef(false);
+  const dirtyLines = useRef(new Map<string, RawLineItem>());
   const [metadataDirtyState, setMetadataDirtyState] = useState(false);
-  const [savingCount, setSavingCount] = useState(0);
+  const [dirtyLineCount, setDirtyLineCount] = useState(0);
+  const [saving, setSaving] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -40,53 +50,96 @@ export function useEditor(initial: DocumentDetail) {
     null,
   );
   const [deleteRequested, setDeleteRequested] = useState(false);
-  const metadataSequence = useRef(0);
-  const metadataDirty = useRef(false);
-  const mutationQueue = useRef(Promise.resolve());
-  const isSaving = savingCount > 0;
+  const hasUnsavedChanges = metadataDirtyState || dirtyLineCount > 0;
 
   function reportError(message: string) {
     setError(message);
     toast.error(message);
   }
 
-  function reconcile(next: DocumentDetail, preserveMetadata = false) {
-    docRef.current = next;
-    setDoc(next);
-    if (!preserveMetadata) {
-      const nextMetadata = {
-        title: next.title,
-        customer: next.customer,
-        issueDate: next.issueDate,
-      };
-      metadataRef.current = nextMetadata;
-      setMetadata(nextMetadata);
-      setMetadataDirtyState(false);
-    }
+  function syncDirtyLineCount() {
+    setDirtyLineCount(dirtyLines.current.size);
   }
 
-  function enqueue<T>(
-    task: (current: DocumentDetail) => Promise<T>,
-    showSaving = true,
-  ) {
-    if (showSaving) setSavingCount((count) => count + 1);
-    const queued = mutationQueue.current.then(() => task(docRef.current));
-    mutationQueue.current = queued.then(
-      () => undefined,
-      () => undefined,
+  function mergeDraftLines(serverDocument: DocumentDetail) {
+    const existingIds = new Set(
+      serverDocument.lineItems.flatMap((line) => (line.id ? [line.id] : [])),
     );
-    if (showSaving) {
-      void queued.then(
-        () => setSavingCount((count) => Math.max(0, count - 1)),
-        () => setSavingCount((count) => Math.max(0, count - 1)),
-      );
+    for (const id of dirtyLines.current.keys()) {
+      if (!existingIds.has(id)) dirtyLines.current.delete(id);
     }
-    return queued;
+    syncDirtyLineCount();
+
+    const lineItems = serverDocument.lineItems.map((line) => {
+      if (!line.id) return line;
+      const raw = dirtyLines.current.get(line.id);
+      if (!raw) return line;
+      try {
+        return {
+          ...calculateLineItem(raw),
+          id: line.id,
+          position: line.position,
+        };
+      } catch {
+        return { ...line, ...raw };
+      }
+    });
+    return {
+      ...serverDocument,
+      ...calculateDocument(lineItems),
+      lineItems,
+    };
   }
 
-  async function refreshAfterConflict() {
+  function reconcile(next: DocumentDetail, preserveDrafts = false) {
+    docRef.current = next;
+    if (preserveDrafts) {
+      setDoc(mergeDraftLines(next));
+      if (!metadataDirty.current) {
+        const nextMetadata = {
+          title: next.title,
+          customer: next.customer,
+          issueDate: next.issueDate,
+        };
+        metadataRef.current = nextMetadata;
+        setMetadata(nextMetadata);
+      }
+      return;
+    }
+
+    dirtyLines.current.clear();
+    syncDirtyLineCount();
+    metadataDirty.current = false;
+    setMetadataDirtyState(false);
+    const nextMetadata = {
+      title: next.title,
+      customer: next.customer,
+      issueDate: next.issueDate,
+    };
+    metadataRef.current = nextMetadata;
+    setMetadata(nextMetadata);
+    setDoc(next);
+  }
+
+  async function readDocumentResponse(response: Response, fallback: string) {
+    const json = (await response
+      .json()
+      .catch(() => null)) as ApiDocumentResponse | null;
+    if (!response.ok || !json?.data) {
+      const cause = new Error(json?.error?.message ?? fallback) as Error & {
+        status?: number;
+        fields?: FieldErrors;
+      };
+      cause.status = response.status;
+      cause.fields = json?.error?.fields;
+      throw cause;
+    }
+    return json.data;
+  }
+
+  async function refreshAfterConflict(preserveDrafts = true) {
     const latest = await fetch(`/api/documents/${docRef.current.id}`);
-    if (latest.ok) reconcile((await latest.json()).data);
+    if (latest.ok) reconcile((await latest.json()).data, preserveDrafts);
   }
 
   function saveMeta(next: Partial<Metadata>) {
@@ -103,45 +156,70 @@ export function useEditor(initial: DocumentDetail) {
     }));
   }
 
-  async function commitMeta() {
-    if (!metadataDirty.current) return;
-    metadataDirty.current = false;
-    setMetadataDirtyState(false);
-    const values = metadataRef.current;
-    const sequence = ++metadataSequence.current;
-    setPendingMeta(true);
-    try {
-      await enqueue(async (current) => {
-        const response = await fetch(`/api/documents/${current.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...values, version: current.version }),
-        });
-        const json = (await response.json().catch(() => null)) as {
-          data?: DocumentDetail;
-          error?: { message?: string; fields?: FieldErrors };
-        } | null;
-        if (!response.ok) {
-          if (response.status === 409) await refreshAfterConflict();
-          setFieldErrors(json?.error?.fields ?? {});
-          throw new Error(
-            json?.error?.message ?? "Could not save this change.",
-          );
-        }
-        if (sequence === metadataSequence.current) {
-          setPendingMeta(false);
-          setError("");
-          if (json?.data) reconcile(json.data);
-        } else if (json?.data) {
-          reconcile(json.data, true);
+  function updateLineDraft(line: CalculatedLineItem, raw: RawLineItem) {
+    if (!line.id || docRef.current.status === "finalized") return;
+    dirtyLines.current.set(line.id, raw);
+    syncDirtyLineCount();
+    setFieldErrors((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(
+          ([key]) =>
+            !key.startsWith(
+              `lineItems.${line.position ? line.position - 1 : 0}.`,
+            ),
+        ),
+      ),
+    );
+    setDoc((current) => {
+      const lineItems = current.lineItems.map((item) => {
+        if (item.id !== line.id) return item;
+        try {
+          return {
+            ...calculateLineItem(raw),
+            id: item.id,
+            position: item.position,
+          };
+        } catch {
+          return { ...item, ...raw };
         }
       });
-    } catch (cause) {
-      metadataDirty.current = true;
-      setMetadataDirtyState(true);
-      setPendingMeta(false);
-      reportError(errorMessage(cause, "Could not save this change."));
+      return { ...current, ...calculateDocument(lineItems), lineItems };
+    });
+  }
+
+  function resetLineDraft(line: CalculatedLineItem) {
+    if (!line.id) return;
+    dirtyLines.current.delete(line.id);
+    syncDirtyLineCount();
+    const serverLine = docRef.current.lineItems.find(
+      (item) => item.id === line.id,
+    );
+    if (!serverLine) return;
+    setDoc((current) => {
+      const lineItems = current.lineItems.map((item) =>
+        item.id === line.id ? serverLine : item,
+      );
+      return { ...current, ...calculateDocument(lineItems), lineItems };
+    });
+  }
+
+  function validateLineDrafts(lineSnapshots: Map<string, RawLineItem>) {
+    const fields: FieldErrors = {};
+    for (const [id, raw] of lineSnapshots) {
+      try {
+        calculateLineItem(raw);
+      } catch (cause) {
+        const index = doc.lineItems.findIndex((line) => line.id === id);
+        const field =
+          cause instanceof Error && "field" in cause
+            ? String((cause as Error & { field: string }).field)
+            : "description";
+        fields[`lineItems.${Math.max(0, index)}.${field}`] = [
+          errorMessage(cause, "Check this value before saving."),
+        ];
+      }
     }
+    return fields;
   }
 
   function focusFirstInvalid(fields: FieldErrors) {
@@ -164,7 +242,7 @@ export function useEditor(initial: DocumentDetail) {
       else {
         const match = first.match(/^lineItems\.(\d+)(?:\.(\w+))?$/);
         if (match) {
-          const line = docRef.current.lineItems[Number(match[1])];
+          const line = doc.lineItems[Number(match[1])];
           const field = match[2] ?? "description";
           if (line?.id)
             target = document.querySelector<HTMLInputElement>(
@@ -176,75 +254,149 @@ export function useEditor(initial: DocumentDetail) {
     }, 0);
   }
 
-  async function saveLine(line: CalculatedLineItem, raw: RawLineItem) {
-    if (docRef.current.status === "finalized") return;
-    const preview = calculateLineItem(raw);
-    setDoc((current) => {
-      const lineItems = current.lineItems.map((item) =>
-        item.id === line.id
-          ? { ...preview, id: line.id, position: line.position }
-          : item,
-      );
-      return { ...current, ...calculateDocument(lineItems), lineItems };
-    });
-    await enqueue(async (current) => {
-      const currentLine = current.lineItems.find((item) => item.id === line.id);
-      if (!currentLine) throw new Error("Line item no longer exists.");
-      const response = await fetch(
-        `/api/documents/${current.id}/line-items/${line.id}`,
-        {
+  async function saveDocument() {
+    if (saving || !hasUnsavedChanges || docRef.current.status === "finalized")
+      return true;
+
+    const metadataSnapshot = { ...metadataRef.current };
+    const shouldSaveMetadata = metadataDirty.current;
+    const lineSnapshots = new Map(dirtyLines.current);
+    const localFields = validateLineDrafts(lineSnapshots);
+    if (Object.keys(localFields).length) {
+      setFieldErrors(localFields);
+      focusFirstInvalid(localFields);
+      toast.error("Correct the highlighted values before saving.");
+      return false;
+    }
+
+    setSaving(true);
+    setError("");
+    setFieldErrors({});
+    let current = docRef.current;
+    let metadataSaved = false;
+    const savedLines = new Map<string, RawLineItem>();
+
+    try {
+      if (shouldSaveMetadata) {
+        const response = await fetch(`/api/documents/${current.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...raw, version: current.version }),
-        },
-      );
-      const json = (await response.json().catch(() => null)) as {
-        data?: DocumentDetail;
-        error?: { message?: string; fields?: FieldErrors };
-      } | null;
-      if (!response.ok) {
-        if (response.status === 409) await refreshAfterConflict();
-        setFieldErrors(json?.error?.fields ?? {});
-        throw new Error(json?.error?.message ?? "Could not save line item.");
+          body: JSON.stringify({
+            ...metadataSnapshot,
+            version: current.version,
+          }),
+        });
+        current = await readDocumentResponse(
+          response,
+          "Could not save document details.",
+        );
+        metadataSaved = true;
       }
+
+      for (const line of current.lineItems) {
+        if (!line.id) continue;
+        const raw = lineSnapshots.get(line.id);
+        if (!raw) continue;
+        try {
+          const response = await fetch(
+            `/api/documents/${current.id}/line-items/${line.id}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...raw, version: current.version }),
+            },
+          );
+          current = await readDocumentResponse(
+            response,
+            "Could not save a line item.",
+          );
+        } catch (cause) {
+          const lineError = cause as Error & { fields?: FieldErrors };
+          if (lineError.fields) {
+            const index = doc.lineItems.findIndex(
+              (item) => item.id === line.id,
+            );
+            lineError.fields = Object.fromEntries(
+              Object.entries(lineError.fields).map(([field, messages]) => [
+                field.startsWith("lineItems.")
+                  ? field
+                  : `lineItems.${Math.max(0, index)}.${field}`,
+                messages,
+              ]),
+            );
+          }
+          throw cause;
+        }
+        savedLines.set(line.id, raw);
+      }
+
       setError("");
-      if (json?.data) reconcile(json.data);
-    }).catch((cause) => {
-      reportError(errorMessage(cause, "Could not save line item."));
-      throw cause;
-    });
+      toast.success("Document saved.");
+      return true;
+    } catch (cause) {
+      const requestError = cause as Error & {
+        status?: number;
+        fields?: FieldErrors;
+      };
+      if (requestError.fields) {
+        setFieldErrors(requestError.fields);
+        focusFirstInvalid(requestError.fields);
+      }
+      if (requestError.status === 409) {
+        await refreshAfterConflict(true);
+        current = docRef.current;
+      }
+      reportError(errorMessage(cause, "Could not save this document."));
+      return false;
+    } finally {
+      if (metadataSaved && sameValue(metadataRef.current, metadataSnapshot)) {
+        metadataDirty.current = false;
+        setMetadataDirtyState(false);
+      }
+      for (const [id, savedRaw] of savedLines) {
+        if (sameValue(dirtyLines.current.get(id), savedRaw)) {
+          dirtyLines.current.delete(id);
+        }
+      }
+      syncDirtyLineCount();
+      reconcile(current, true);
+      setSaving(false);
+    }
+  }
+
+  function requestPublish() {
+    if (hasUnsavedChanges) {
+      toast.info("Save your changes before publishing.");
+      return;
+    }
+    setConfirm(true);
   }
 
   async function addLine(after?: string) {
     if (docRef.current.status === "finalized") return;
     setError("");
     try {
-      const next = await enqueue(async (current) => {
-        const response = await fetch(
-          `/api/documents/${current.id}/line-items`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              description: "",
-              quantity: "1",
-              unitPrice: "0",
-              discountType: "none",
-              discountValue: "0",
-              taxPercent: "0",
-              afterLineItemId: after,
-            }),
-          },
-        );
-        const json = (await response.json().catch(() => null)) as {
-          data?: DocumentDetail;
-          error?: { message?: string };
-        } | null;
-        if (!response.ok || !json?.data)
-          throw new Error(json?.error?.message ?? "Could not add a line item.");
-        reconcile(json.data);
-        return json.data;
-      }, false);
+      const response = await fetch(
+        `/api/documents/${docRef.current.id}/line-items`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            description: "",
+            quantity: "1",
+            unitPrice: "0",
+            discountType: "none",
+            discountValue: "0",
+            taxPercent: "0",
+            afterLineItemId: after,
+          }),
+        },
+      );
+      const next = await readDocumentResponse(
+        response,
+        "Could not add a line item.",
+      );
+      reconcile(next, true);
       const position = after
         ? (next.lineItems.find((item) => item.id === after)?.position ??
             next.lineItems.length - 1) + 1
@@ -272,27 +424,29 @@ export function useEditor(initial: DocumentDetail) {
     setWorking(true);
     setError("");
     try {
-      const next = await enqueue(async (current) => {
-        const response = await fetch(
-          `/api/documents/${current.id}/line-items/${line.id}`,
-          {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ version: current.version }),
-          },
+      const response = await fetch(
+        `/api/documents/${docRef.current.id}/line-items/${line.id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ version: docRef.current.version }),
+        },
+      );
+      if (!response.ok) {
+        const json = (await response
+          .json()
+          .catch(() => null)) as ApiDocumentResponse | null;
+        throw new Error(
+          json?.error?.message ?? "Could not remove this line item.",
         );
-        if (!response.ok) {
-          const json = await response.json().catch(() => null);
-          throw new Error(
-            json?.error?.message ?? "Could not remove this line item.",
-          );
-        }
-        const latest = await fetch(`/api/documents/${current.id}`);
-        if (!latest.ok) throw new Error("The document could not be refreshed.");
-        const data = (await latest.json()).data as DocumentDetail;
-        reconcile(data);
-        return data;
-      });
+      }
+      const latest = await fetch(`/api/documents/${docRef.current.id}`);
+      const next = await readDocumentResponse(
+        latest,
+        "The document could not be refreshed.",
+      );
+      if (line.id) dirtyLines.current.delete(line.id);
+      reconcile(next, true);
       const target =
         next.lineItems.find((item) => item.position === fallbackPosition) ??
         next.lineItems[next.lineItems.length - 1];
@@ -317,40 +471,42 @@ export function useEditor(initial: DocumentDetail) {
   }
 
   async function finalize() {
+    if (hasUnsavedChanges) {
+      requestPublish();
+      return;
+    }
     setWorking(true);
     setError("");
     setFieldErrors({});
     try {
-      const next = await enqueue(async (current) => {
-        const response = await fetch(`/api/documents/${current.id}/finalize`, {
+      const response = await fetch(
+        `/api/documents/${docRef.current.id}/finalize`,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ version: current.version }),
-        });
-        const json = (await response.json().catch(() => null)) as {
-          data?: DocumentDetail;
-          error?: { message?: string; fields?: FieldErrors };
-        } | null;
-        if (!response.ok) {
-          const fields = json?.error?.fields ?? {};
-          setFieldErrors(fields);
-          if (response.status === 422) {
-            setConfirm(false);
-            focusFirstInvalid(fields);
-          }
-          throw new Error(
-            json?.error?.message ?? "Complete the document before finalizing.",
-          );
+          body: JSON.stringify({ version: docRef.current.version }),
+        },
+      );
+      const json = (await response
+        .json()
+        .catch(() => null)) as ApiDocumentResponse | null;
+      if (!response.ok || !json?.data) {
+        const fields = json?.error?.fields ?? {};
+        setFieldErrors(fields);
+        if (response.status === 422) {
+          setConfirm(false);
+          focusFirstInvalid(fields);
         }
-        if (!json?.data)
-          throw new Error("The document could not be finalized.");
-        return json.data;
-      });
-      reconcile(next);
+        throw new Error(
+          json?.error?.message ?? "Complete the document before publishing.",
+        );
+      }
+      reconcile(json.data);
       setConfirm(false);
+      toast.success("Document published.");
     } catch (cause) {
       reportError(
-        errorMessage(cause, "Complete the document before finalizing."),
+        errorMessage(cause, "Complete the document before publishing."),
       );
     } finally {
       setWorking(false);
@@ -358,6 +514,11 @@ export function useEditor(initial: DocumentDetail) {
   }
 
   async function duplicate() {
+    if (hasUnsavedChanges) {
+      toast.info("Save your changes before using this document as a template.");
+      setMenu(false);
+      return;
+    }
     setWorking(true);
     setMenu(false);
     try {
@@ -394,16 +555,11 @@ export function useEditor(initial: DocumentDetail) {
           body: JSON.stringify({ version: docRef.current.version }),
         },
       );
-      const json = (await response.json().catch(() => null)) as {
-        data?: DocumentDetail;
-        error?: { message?: string };
-      } | null;
-      if (!response.ok || !json?.data)
-        throw new Error(
-          json?.error?.message ??
-            "Could not change the document back to a draft.",
-        );
-      reconcile(json.data);
+      const next = await readDocumentResponse(
+        response,
+        "Could not change the document back to a draft.",
+      );
+      reconcile(next);
       toast.success("Document changed to draft.");
     } catch (cause) {
       reportError(
@@ -438,15 +594,6 @@ export function useEditor(initial: DocumentDetail) {
     }
   }
 
-  const saving = isSaving || pendingMeta;
-  const saveState = saving
-    ? "Saving"
-    : metadataDirtyState
-      ? "Unsaved changes"
-      : error
-        ? "Needs attention"
-        : "Saved";
-
   return {
     doc,
     metadata,
@@ -460,14 +607,14 @@ export function useEditor(initial: DocumentDetail) {
     deleteRequested,
     setDeleteRequested,
     working,
-    isSaving,
-    pendingMeta,
-    error,
-    saveState,
     saving,
+    error,
+    hasUnsavedChanges,
     saveMeta,
-    commitMeta,
-    saveLine,
+    updateLineDraft,
+    resetLineDraft,
+    saveDocument,
+    requestPublish,
     addLine,
     removeLine,
     finalize,

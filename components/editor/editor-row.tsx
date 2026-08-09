@@ -1,13 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FocusEvent,
-  type KeyboardEvent,
-} from "react";
+import { useState, type FocusEvent, type KeyboardEvent } from "react";
 import type {
   CalculatedLineItem,
   DiscountType,
@@ -26,7 +20,8 @@ type EditorRowProps = {
   readOnly: boolean;
   lineIndex: number;
   fieldErrors: FieldErrors;
-  onSave: (line: CalculatedLineItem, raw: RawLineItem) => Promise<void>;
+  onChange: (line: CalculatedLineItem, raw: RawLineItem) => void;
+  onReset: (line: CalculatedLineItem) => void;
   onAdd: () => Promise<void>;
   onRemove: () => void | Promise<void>;
 };
@@ -36,97 +31,45 @@ export function EditorRow({
   readOnly,
   lineIndex,
   fieldErrors,
-  onSave,
+  onChange,
+  onReset,
   onAdd,
   onRemove,
 }: EditorRowProps) {
-  const initialRaw = rawOf(line);
-  const [draft, setDraft] = useState(initialRaw);
+  const draft = rawOf(line);
   const [localError, setLocalError] = useState("");
-  const draftRef = useRef(initialRaw);
-  const serverKey = JSON.stringify(initialRaw);
-  const lastServerKey = useRef(serverKey);
-  const dirty = useRef(false);
-  const editSequence = useRef(0);
-  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (serverKey !== lastServerKey.current && !dirty.current) {
-      const next = rawOf(line);
-      draftRef.current = next;
-      setDraft(next);
-    }
-    lastServerKey.current = serverKey;
-  }, [line, serverKey]);
-
-  useEffect(
-    () => () => {
-      if (commitTimer.current) clearTimeout(commitTimer.current);
-    },
-    [],
-  );
-
-  function set(field: Field, value: string) {
-    dirty.current = true;
-    setLocalError("");
-    const next = { ...draftRef.current, [field]: value };
-    draftRef.current = next;
-    setDraft(next);
-  }
-
-  async function commit() {
-    if (commitTimer.current) {
-      clearTimeout(commitTimer.current);
-      commitTimer.current = null;
-    }
-    if (readOnly || !dirty.current) return true;
-    const sequence = ++editSequence.current;
-    const next = draftRef.current;
-    dirty.current = false;
+  function update(next: RawLineItem) {
     try {
       calculateLineItem(next);
       setLocalError("");
-      await onSave(line, next);
-      if (sequence === editSequence.current) dirty.current = false;
-      return true;
     } catch (cause) {
-      if (sequence === editSequence.current) {
-        dirty.current = true;
-        setLocalError(errorMessage(cause, "Check this value before saving."));
-      }
-      return false;
+      setLocalError(errorMessage(cause, "Check this value before saving."));
     }
+    onChange(line, next);
   }
 
-  function scheduleCommit() {
-    if (commitTimer.current) clearTimeout(commitTimer.current);
-    commitTimer.current = setTimeout(() => {
-      commitTimer.current = null;
-      void commit();
-    }, 500);
+  function set(field: Field, value: string) {
+    update({ ...draft, [field]: value });
   }
 
   function key(event: KeyboardEvent<HTMLInputElement>, field: Field) {
     if (event.key === "Escape") {
       event.preventDefault();
-      dirty.current = false;
-      const next = rawOf(line);
-      draftRef.current = next;
-      setDraft(next);
       setLocalError("");
+      onReset(line);
       event.currentTarget.blur();
       return;
     }
     if (event.key !== "Enter") return;
     event.preventDefault();
     try {
-      calculateLineItem(draftRef.current);
+      calculateLineItem(draft);
       setLocalError("");
     } catch (cause) {
       setLocalError(errorMessage(cause, "Check this value before saving."));
       return;
     }
-    void commit();
     if (event.shiftKey) {
       void onAdd();
       return;
@@ -188,7 +131,6 @@ export function EditorRow({
           value={draft.description}
           disabled={readOnly}
           onChange={(event) => set("description", event.target.value)}
-          onBlur={() => void commit()}
           onKeyDown={(event) => key(event, "description")}
           aria-label={`Line ${line.position} description`}
         />
@@ -210,11 +152,7 @@ export function EditorRow({
           disabled={readOnly}
           inputMode="decimal"
           onFocus={focusNumber}
-          onChange={(event) => {
-            set("quantity", event.target.value);
-            scheduleCommit();
-          }}
-          onBlur={() => void commit()}
+          onChange={(event) => set("quantity", event.target.value)}
           onKeyDown={(event) => key(event, "quantity")}
           aria-label={`Line ${line.position} quantity`}
         />
@@ -231,11 +169,7 @@ export function EditorRow({
           disabled={readOnly}
           inputMode="decimal"
           onFocus={focusNumber}
-          onChange={(event) => {
-            set("unitPrice", event.target.value);
-            scheduleCommit();
-          }}
-          onBlur={() => void commit()}
+          onChange={(event) => set("unitPrice", event.target.value)}
           onKeyDown={(event) => key(event, "unitPrice")}
           aria-label={`Line ${line.position} unit price`}
         />
@@ -253,11 +187,7 @@ export function EditorRow({
             disabled={readOnly || draft.discountType === "none"}
             inputMode="decimal"
             onFocus={focusNumber}
-            onChange={(event) => {
-              set("discountValue", event.target.value);
-              scheduleCommit();
-            }}
-            onBlur={() => void commit()}
+            onChange={(event) => set("discountValue", event.target.value)}
             onKeyDown={(event) => key(event, "discountValue")}
             aria-label={`Line ${line.position} discount value`}
           />
@@ -267,18 +197,12 @@ export function EditorRow({
             disabled={readOnly}
             onChange={(event) => {
               const discountType = event.target.value as DiscountType;
-              dirty.current = true;
-              const next = {
-                ...draftRef.current,
+              update({
+                ...draft,
                 discountType,
                 discountValue:
-                  discountType === "none"
-                    ? "0"
-                    : draftRef.current.discountValue,
-              };
-              draftRef.current = next;
-              setDraft(next);
-              scheduleCommit();
+                  discountType === "none" ? "0" : draft.discountValue,
+              });
             }}
             aria-label={`Line ${line.position} discount type`}
             aria-invalid={Boolean(errorFor("discountValue"))}
@@ -303,11 +227,7 @@ export function EditorRow({
           disabled={readOnly}
           inputMode="decimal"
           onFocus={focusNumber}
-          onChange={(event) => {
-            set("taxPercent", event.target.value);
-            scheduleCommit();
-          }}
-          onBlur={() => void commit()}
+          onChange={(event) => set("taxPercent", event.target.value)}
           onKeyDown={(event) => key(event, "taxPercent")}
           aria-label={`Line ${line.position} tax percent`}
         />
