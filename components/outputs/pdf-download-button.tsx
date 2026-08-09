@@ -1,7 +1,8 @@
 "use client";
 
 import { FileDown, LoaderCircle } from "lucide-react";
-import html2pdf from "html2pdf.js";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -21,7 +22,6 @@ export function PdfDownloadButton({
   async function download() {
     setBusy(true);
     let frame: HTMLIFrameElement | null = null;
-    let renderStyle: HTMLStyleElement | null = null;
     try {
       const response = await fetch(`/api/documents/${documentId}/export/html`);
       if (!response.ok) {
@@ -47,35 +47,71 @@ export function PdfDownloadButton({
       frameDocument.write(html);
       frameDocument.close();
       await frameDocument.fonts.ready;
-      // Capture the full standalone document so html2pdf preserves its
-      // embedded stylesheet when it clones the source into its render layer.
+      // Capture the full standalone document so its embedded stylesheet is
+      // applied directly, without creating a visible render overlay.
       const target = frameDocument.documentElement;
       if (!target) {
         throw new Error("Could not prepare the document output.");
       }
-      renderStyle = document.createElement("style");
-      renderStyle.textContent =
-        ".html2pdf__overlay{z-index:-1!important;pointer-events:none!important;}";
-      document.head.appendChild(renderStyle);
-      await html2pdf()
-        .set({
-          margin: [12, 12, 12, 12],
-          filename: `${safeFilename(filename)}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            backgroundColor: "#ffffff",
-            scale: 2,
-            useCORS: true,
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        })
-        .from(target)
-        .save();
+      const canvas = await html2canvas(target, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        windowWidth: 900,
+        windowHeight: Math.max(
+          target.scrollHeight,
+          frameDocument.body?.scrollHeight ?? 0,
+        ),
+      });
+      const pdf = new jsPDF({
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait",
+      });
+      const margin = 12;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const contentWidth = pageWidth - margin * 2;
+      const contentHeight = pageHeight - margin * 2;
+      const scale = contentWidth / canvas.width;
+      const sliceHeight = Math.floor(contentHeight / scale);
+      let offset = 0;
+      let page = 0;
+      while (offset < canvas.height) {
+        const height = Math.min(sliceHeight, canvas.height - offset);
+        const slice = document.createElement("canvas");
+        slice.width = canvas.width;
+        slice.height = height;
+        const context = slice.getContext("2d");
+        if (!context) throw new Error("Could not prepare the PDF canvas.");
+        context.drawImage(
+          canvas,
+          0,
+          offset,
+          canvas.width,
+          height,
+          0,
+          0,
+          canvas.width,
+          height,
+        );
+        if (page > 0) pdf.addPage();
+        pdf.addImage(
+          slice.toDataURL("image/jpeg", 0.98),
+          "JPEG",
+          margin,
+          margin,
+          contentWidth,
+          height * scale,
+        );
+        offset += height;
+        page += 1;
+      }
+      pdf.save(`${safeFilename(filename)}.pdf`);
       toast.success("PDF downloaded.");
     } catch {
       toast.error("Could not create the PDF. Please try again.");
     } finally {
-      renderStyle?.remove();
       frame?.remove();
       setBusy(false);
     }
