@@ -5,7 +5,7 @@ Defines how users authenticate, maintain sessions, receive starter data, and rem
 ## ADDED Requirements
 
 ### Requirement: Supported authentication methods
-The system SHALL support email-and-password sign-up, email-and-password sign-in, Google OAuth sign-in, and sign-out. Authentication screens SHALL expose clear pending and failure states without disclosing whether an unrelated account exists.
+The system SHALL support email-and-password sign-up, email-and-password sign-in, and sign-out. Authentication screens SHALL expose clear pending and failure states without disclosing whether an unrelated account exists. Google or other social-provider controls SHALL NOT be presented.
 
 #### Scenario: Email sign-up succeeds
 - **WHEN** a visitor submits a valid email and password in sign-up mode
@@ -14,10 +14,6 @@ The system SHALL support email-and-password sign-up, email-and-password sign-in,
 #### Scenario: Email sign-in fails
 - **WHEN** a visitor submits invalid credentials
 - **THEN** the system remains on the authentication screen and presents a concise, accessible error
-
-#### Scenario: Google sign-in starts
-- **WHEN** a visitor chooses Google sign-in
-- **THEN** the system starts the Google OAuth flow with an allow-listed application callback URL
 
 #### Scenario: User signs out
 - **WHEN** an authenticated user chooses sign out
@@ -55,4 +51,3 @@ Each newly authenticated user SHALL receive exactly one ordinary draft titled "S
 #### Scenario: Provisioning is retried
 - **WHEN** starter-document provisioning runs more than once for the same user
 - **THEN** exactly one starter document exists for that user
-

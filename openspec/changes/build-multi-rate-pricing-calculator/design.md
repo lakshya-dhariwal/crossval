@@ -27,7 +27,7 @@ The public Supabase URL and publishable key are browser-safe. The supplied secre
 - Keep the database internally coherent after every externally successful mutation and secure under both route-level authorization and RLS.
 - Give the editor reliable native-input keyboard behavior, immediate previews, and race-safe server reconciliation.
 - Produce a distinctive but restrained product surface with a documented hierarchy and component character, not a generic component-library demo.
-- Make setup, migration, testing, OAuth, deployment, and manual QA reproducible by another engineer.
+- Make setup, migration, testing, email authentication, deployment, and manual QA reproducible by another engineer.
 
 **Non-Goals:**
 
@@ -41,7 +41,7 @@ The public Supabase URL and publishable key are browser-safe. The supplied secre
 
 ### 1. Application shape and dependency boundaries
 
-Use the latest stable Next.js App Router with strict TypeScript and Tailwind CSS. Keep Server Components as the default for route protection, initial page data, and static layout. Use Client Components only for authentication form interaction, filters, editor/autosave state, menus/dialogs, report controls, downloading, and `window.print()`.
+Use the latest stable Next.js App Router with strict TypeScript and Tailwind CSS. Keep Server Components as the default for route protection, initial page data, and static layout. Use Client Components only for authentication form interaction, filters, local editor state, menus/dialogs, route/request progress, report controls, downloading, and `window.print()`.
 
 Recommended dependencies:
 
@@ -97,7 +97,7 @@ Optional docs:  NEXT_PUBLIC_SITE_URL (deployment callback base)
 
 Do not add `SUPABASE_JWKS_URL` unless code actually validates JWTs independently; `supabase.auth.getUser()` is the source of verified identity and already handles verification. Never use `getSession()` alone as authorization proof in a route handler.
 
-Implement browser, server-cookie, and middleware clients following current `@supabase/ssr` cookie APIs. Middleware refreshes auth cookies and limits redirects; every protected layout and Route Handler still verifies the user because middleware is not an authorization boundary. OAuth callback exchanges the code for a session and redirects only to a validated same-origin path.
+Implement browser, server-cookie, and middleware clients following current `@supabase/ssr` cookie APIs. Middleware refreshes auth cookies and limits redirects; every protected layout and Route Handler still verifies the user because middleware is not an authorization boundary. The email-auth callback exchanges the confirmation code for a session and redirects only to a validated same-origin path.
 
 Alternative considered: decoding the JWT locally from the supplied JWKS URL. Rejected because it duplicates supported Supabase auth behavior and adds key-rotation/error complexity without benefit.
 
@@ -216,7 +216,7 @@ Use camelCase in JSON while preserving snake_case in database rows through expli
 
 ### 9. Sample provisioning
 
-Provision lazily after the first verified session, before rendering the protected shell. `ensureSampleDocument(userId)` attempts insertion keyed by `(user_id, sample_key='assignment-v1')`; a uniqueness conflict means another request won. It builds the three lines through the same TypeScript calculator and atomic snapshot path used by normal documents. This avoids a trigger on `auth.users`, remains testable, and is idempotent across OAuth/email races.
+Provision lazily after the first verified session, before rendering the protected shell. `ensureSampleDocument(userId)` attempts insertion keyed by `(user_id, sample_key='assignment-v1')`; a uniqueness conflict means another request won. It builds the three lines through the same TypeScript calculator and atomic snapshot path used by normal documents. This avoids a trigger on `auth.users`, remains testable, and is idempotent across repeated email-authentication requests.
 
 Alternative considered: an `auth.users` trigger containing hard-coded totals. Rejected because it duplicates pricing logic and makes auth creation depend on application-domain SQL.
 
@@ -251,19 +251,19 @@ At narrower laptop widths, collapse sidebar labels behind an explicit menu or re
 
 ### 11. Editor state and mutation coordination
 
-Model each editable cell as server value plus optional draft value and field error. Maintain one document-level save coordinator:
+Model each editable cell as server value plus optional local draft value and field error. Maintain one document-level explicit save coordinator:
 
 ```text
-clean -> locally_dirty -> queued/saving -> saved
-                       \-> validation_error
+clean -> locally_dirty -> saving -> saved
+                       \-> validation_error -> locally_dirty
                        \-> conflict -> refetch -> clean/read_only
 ```
 
-Text fields debounce approximately 400ms, flush on blur/Enter, and cancel the previous unsent timer. Numeric fields preview locally but mutate only on blur/Enter. Each outgoing request receives a monotonically increasing client sequence plus the current server version. Apply a response only when its sequence is not older than the latest acknowledged edit and its version advances state. Abort superseded fetches where safe; never abort a request after the server may have committed and assume it did not run—refetch when uncertain.
+No field change initiates a request. Metadata and raw line drafts remain local and numerical fields preview through the shared calculator. Save validates the complete changed set, then applies metadata and changed-line requests serially with each latest server version. Successfully committed portions are removed from the dirty set; a failed or partial save retains all remaining local values and reconciles the latest confirmed server snapshot. Publish requires a clean draft so finalization never races unsaved edits.
 
-Keep DOM inputs mounted and keyed by stable line IDs to preserve cursor and focus. Store refs by `lineId:field`. Define editable traversal order as Description, Qty, Unit price, Discount value/type, Tax for each row. Enter flushes and advances only after success; Shift+Enter prevents default, flushes current valid edit, inserts below, then focuses Description from the committed response. Escape resets the local field to its server value. Deletion captures current coordinates and focuses same-column next row, previous row, or Add line in that order.
+Keep DOM inputs mounted and keyed by stable line IDs to preserve cursor and focus. Store refs by `lineId:field`. Define editable traversal order as Description, Qty, Unit price, Discount value/type, Tax for each row. Enter advances without a request; Shift+Enter prevents default, inserts below, then focuses Description from the committed response. Escape resets the local row to its server value. Deletion captures current coordinates and focuses same-column next row, previous row, or Add line in that order.
 
-Use `aria-live="polite"` for save state and document-level errors, `aria-describedby` for field errors, accessible names for icon buttons, and Radix focus management for menus/dialog. Finalize remains disabled while local invalid fields, queued saves, or active mutations exist.
+Use `aria-live="polite"` for explicit save state and document-level errors, `aria-describedby` for field errors, accessible names for icon buttons, and focus management for menus/dialog. Save and Publish expose icons and pending states; Publish refuses unsaved drafts. Use `next-nprogress-bar` as a slim green top indicator for App Router navigation and client-side `/api/` requests. Prefetch Documents from the auth screen and Reports while the Documents area is active.
 
 ### 12. Documents, reports, and output flows
 
@@ -279,11 +279,11 @@ Vitest calculation tests must call the production calculator for the assignment 
 
 Test lifecycle services with a repository/persistence adapter seam: finalized mutations rejected, invalid finalization rejected, finalized duplication produces a recalculated draft and leaves source unchanged, computed client fields ignored, and stale version conflicts. Add route tests for 401/404/409/422 envelopes and wrong-parent line IDs where practical. Add component tests for Shift+Enter insertion, Escape rollback, finalized read-only rendering, and focus restoration. SQL/RLS verification should use two test users against a local Supabase instance or documented manual scripts.
 
-Before handoff run formatting, lint, `tsc --noEmit`, Vitest, and production build. Then perform the supplied manual QA checklist against local Supabase and a production deployment, recording anything blocked by external Google/Supabase configuration rather than claiming it passed.
+Before handoff run formatting, lint, `tsc --noEmit`, Vitest, and production build. Then perform the supplied manual QA checklist against local Supabase and a production deployment, recording anything blocked by external Supabase configuration rather than claiming it passed.
 
 ### 14. README and deployment contract
 
-README sections must match the requested deliverable list and include exact Supabase CLI migration commands, local environment names without real secret values, Google provider/callback configuration, development/test/build commands, Vercel environment setup, endpoint table, worked sample, rounding policy, finalization rules, assumptions/trade-offs, screenshot section, deployed URL placeholder until real deployment, and realistic production improvements.
+README sections must match the requested deliverable list and include exact Supabase CLI migration commands, local environment names without real secret values, email confirmation callback configuration, development/test/build commands, Vercel environment setup, endpoint table, worked sample, rounding policy, finalization rules, assumptions/trade-offs, screenshot section, deployed URL placeholder until real deployment, and realistic production improvements.
 
 Do not install `supabase/agent-skills` into the product dependency graph. If an implementation agent chooses to install coding-agent skills, treat them as local tooling and review any generated files before keeping them.
 
@@ -305,7 +305,7 @@ Do not install `supabase/agent-skills` into the product dependency graph. If an 
 2. Scaffold the Next.js application and install pinned dependencies.
 3. Add migrations in dependency order: extensions/enums/tables, constraints/indexes, timestamp/lifecycle triggers, RLS/grants, then atomic snapshot functions.
 4. Apply migrations to a local Supabase environment, run RLS/two-user verification, then apply to the target project.
-5. Configure email/password and Google OAuth redirect URLs for localhost and production.
+5. Configure email/password confirmation redirect URLs for localhost and production.
 6. Deploy the application with public and rotated server-only environment values, run migrations before switching traffic, then complete the manual QA checklist.
 
 Rollback before real user data is present: remove the application deployment and roll back/drop assignment tables/functions with an explicit down migration. After real data exists: do not destructively roll back; deploy the previous application version, preserve tables, and forward-fix schema changes.

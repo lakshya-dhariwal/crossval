@@ -25,10 +25,10 @@
 - [x] 3.1 Implement browser, server-cookie, middleware, and server-only admin Supabase helpers using current `@supabase/ssr` patterns and validated environment values.
 - [x] 3.2 Implement middleware session-cookie refresh without treating middleware as authorization; exclude static assets while covering protected application routes.
 - [x] 3.3 Implement reusable `getUser`/`requireUser` server guards using verified `auth.getUser()`, protected app layout redirects, and HTTP 401 API behavior.
-- [x] 3.4 Implement the OAuth callback code exchange with a validated same-origin destination and useful failure redirect.
-- [x] 3.5 Build the polished auth page with Google, email/password sign-in and sign-up modes, accessible labels, pending states, inline failures, confirmation messaging, and no value loss.
+- [x] 3.4 Implement the email-auth callback code exchange with a validated same-origin destination and useful failure redirect.
+- [ ] 3.5 Build the polished email/password sign-in and sign-up page with accessible labels, pending states, toast feedback, confirmation messaging, route prefetching, and no social login controls.
 - [x] 3.6 Implement sign-out in the account area and verify signed-out users cannot render documents, reports, print routes, or protected API data.
-- [ ] 3.7 Configure and document Supabase email/password plus Google provider redirect URLs for localhost and deployment; manually verify each authentication path when provider credentials are available.
+- [ ] 3.7 Configure and document Supabase email/password confirmation redirect URLs for localhost and deployment; manually verify each authentication path when credentials are available.
 
 ## 4. Domain Types, Validation, and Decimal Calculations
 
@@ -83,9 +83,9 @@
 ## 9. Document Editor Metadata and Read-Only State
 
 - [x] 9.1 Build the protected document route with owner-safe not-found handling, full initial server snapshot, breadcrumb, output menu, status, save indicator, and draft Finalize action.
-- [x] 9.2 Build inline title, Customer, and Issue date controls with restrained labels/required indicators, local draft values, Enter/blur/debounced save behavior, and field-associated errors.
-- [ ] 9.3 Implement the document save coordinator with server version, monotonic client sequence, queued/pending/saved/error states, safe abort/refetch behavior, and stale-response rejection.
-- [x] 9.4 Disable finalization while local validation failures or mutations exist and handle `DOCUMENT_FINALIZED` by showing the server message, refetching, and switching to read-only.
+- [ ] 9.2 Build inline title, Customer, and Issue date controls with restrained labels/required indicators, local draft values that persist only through Save, and field-associated errors.
+- [ ] 9.3 Implement the explicit document save coordinator with dirty metadata/line tracking, server-version sequencing, partial-failure retention, saved/error states, conflict refetching, and stale-response rejection.
+- [ ] 9.4 Require a clean saved draft before publishing and handle `DOCUMENT_FINALIZED` by showing the server message, refetching, and switching to read-only.
 - [x] 9.5 Render finalized metadata as non-input text, replace the CTA with a clear Finalized state, keep line mutation controls hidden, and retain finalized print/export/template/change-to-draft/delete actions.
 - [ ] 9.6 Add stable editor loading/not-found/error presentation and tests for metadata sequencing, inline validation, and finalized read-only rendering.
 
@@ -94,9 +94,9 @@
 - [x] 10.1 Build the non-virtualized semantic grid with sticky header, specified editable/calculated columns and widths, muted calculated cells, tabular money, row hover, and a contained overflow strategy.
 - [ ] 10.2 Implement stable per-cell server/draft/error state keyed by line ID, exact local Decimal previews, selection of numeric text on appropriate focus, and no cursor/focus loss during reconciliation.
 - [x] 10.3 Build compact None/%/Fixed discount editing that clears incompatible values and an integrated percentage tax editor without ugly number spinners.
-- [x] 10.4 Save numeric cells on blur/Enter and text cells on debounce/blur using the shared coordinator; show local errors and reconcile the full committed snapshot without total-panel layout shift.
-- [x] 10.5 Implement native Tab/Shift+Tab editable-cell traversal, Enter save-and-next, Escape restore, and explicit focus refs in Description/Qty/Unit price/Discount/Tax order.
-- [x] 10.6 Implement Shift+Enter flush-and-insert directly below the active row, then focus new Description; implement Add line with the same committed focus behavior.
+- [ ] 10.4 Keep all text/numeric cell edits local until Save, show immediate Decimal previews and local errors, and reconcile the full committed snapshot without total-panel layout shift.
+- [ ] 10.5 Implement native Tab/Shift+Tab editable-cell traversal, request-free Enter-to-next, Escape restore, and explicit focus refs in Description/Qty/Unit price/Discount/Tax order.
+- [ ] 10.6 Implement Shift+Enter insert directly below the active row, then focus new Description; implement Add line with the same committed focus behavior while preserving other unsaved drafts.
 - [ ] 10.7 Implement row removal with an accessible action, appropriate confirmation only where ambiguity warrants it, and deterministic same-column next/previous/Add focus restoration.
 - [x] 10.8 Build the aligned totals panel for subtotal, negative discount, tax, divider, and emphasized grand total, driven by immediate preview then authoritative reconciliation.
 - [x] 10.9 Remove all line inputs/add/remove controls for finalized documents while preserving the same readable table geometry.
@@ -105,7 +105,7 @@
 ## 11. Finalization Experience
 
 - [x] 11.1 Build the accessible finalize dialog with exact immutability/template copy, focus trap/restoration, Cancel and Finalize document actions, and duplicate-submit protection.
-- [ ] 11.2 Wire finalization to flush/await pending saves, submit the current version, display indexed validation errors at their fields, and announce meaningful success or failure.
+- [ ] 11.2 Require users to Save before Publish, submit the current saved version, display indexed validation errors at their fields, and announce meaningful success or failure.
 - [x] 11.3 Verify direct metadata and line add/patch/delete requests against a finalized document receive the exact HTTP 409 envelope while explicit reversal and deletion routes remain owner-scoped.
 
 ## 12. Summary Reports
@@ -130,11 +130,11 @@
 - [ ] 14.3 Review all loading, empty, validation, network, stale-conflict, not-found, and finalized states for stable layout and useful recovery without routine mutation toasts.
 - [x] 14.4 Perform the Quiet Ledger visual pass: remove generic card-grid/pill/gradient/glass patterns, tune page rhythm and compact table density, limit elevation, verify green remains an accent, and keep radius use within 8-12px.
 - [ ] 14.5 Test at representative desktop and small-laptop widths; fix overflow, sticky-header layering, menu alignment, date-input integration, focus preservation, and totals layout shift.
-- [x] 14.6 Check reduced motion, browser console errors, hydration warnings, auth flicker, and rapid-input request behavior; fix all observed issues.
+- [ ] 14.6 Check reduced motion, browser console errors, hydration warnings, auth flicker, explicit-save request behavior, global navigation/API progress, and requested route prefetching; fix all observed issues.
 
 ## 15. Documentation and Deployment Readiness
 
-- [x] 15.1 Write the README product overview, screenshot section, stack, prerequisites, exact local setup, Supabase project/link/migration commands, environment table, and Google OAuth configuration.
+- [ ] 15.1 Keep the README product overview, screenshot section, stack, prerequisites, exact local setup, Supabase project/link/migration commands, environment table, and email-authentication configuration aligned with the product.
 - [x] 15.2 Document the exact calculation policy with worked assignment example, decimal precision, round-half-up/per-line rounding, discount-before-tax, fixed-discount rejection, document aggregation, and server authority.
 - [x] 15.3 Document draft/finalized read-only behavior, explicit reversal/deletion, API enforcement, template behavior, endpoint/method/status overview, assumptions/trade-offs, and realistic pre-production improvements.
 - [x] 15.4 Document development, lint, typecheck, unit/integration tests, build, Vercel deployment/environment/migration sequence, rollback posture, and deployed URL placeholder until a real URL is verified.
@@ -143,9 +143,9 @@
 ## 16. Full Verification and Handoff
 
 - [x] 16.1 Run the formatter/check, lint, strict typecheck, complete Vitest suite, SQL/RLS checks, and production build; fix every warning/error that indicates a real defect and record exact passing commands.
-- [ ] 16.2 Manually verify the complete AUTH and cross-account isolation checklist using two accounts, documenting any Google/provider step blocked by unavailable external credentials.
-- [ ] 16.3 Manually verify document creation, idempotent sample, metadata autosave, all grid keyboard actions, discounts/taxes/validation, deletion focus, server reconciliation, and exact sample totals.
+- [ ] 16.2 Manually verify the complete email AUTH and cross-account isolation checklist using two accounts, documenting any provider step blocked by unavailable external credentials.
+- [ ] 16.3 Manually verify document creation, idempotent sample, explicit metadata/line saving, all grid keyboard actions, discounts/taxes/validation, deletion focus, server reconciliation, and exact sample totals.
 - [x] 16.4 Manually verify finalization validation/read-only/API conflicts, draft and finalized template copies, print/Save-as-PDF preview, independent HTML download, and source immutability.
 - [ ] 16.5 Manually verify report boundaries/count/sums, loading/empty/error states, laptop layouts, keyboard focus, accessibility basics, console cleanliness, and absence of hydration errors.
-- [ ] 16.6 Deploy only if credentials and deployment authority are available, apply migrations first, configure OAuth callbacks/environment, smoke-test the live URL, and replace the README placeholder only after verification; otherwise report deployment as an explicit remaining external step.
+- [ ] 16.6 Deploy only if credentials and deployment authority are available, apply migrations first, configure auth callbacks/environment, smoke-test the live URL, and replace the README placeholder only after verification; otherwise report deployment as an explicit remaining external step.
 - [x] 16.7 Reconcile every completed checkbox against actual code/tests rather than intent, leave unfinished items unchecked, and provide the requested architecture, schema, endpoints, calculation policy, tests, assumptions, limitations, and exact Supabase/environment/deployment command summary.

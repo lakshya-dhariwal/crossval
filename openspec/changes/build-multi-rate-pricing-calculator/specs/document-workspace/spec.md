@@ -1,6 +1,6 @@
 ## Purpose
 
-Defines the polished, accessible productivity-SaaS experience for authentication, navigation, document discovery, spreadsheet-like editing, autosave, and finalization.
+Defines the polished, accessible productivity-SaaS experience for authentication, navigation, document discovery, spreadsheet-like editing, explicit saving, and finalization.
 
 ## ADDED Requirements
 
@@ -12,7 +12,7 @@ The light-only interface SHALL use tokenized colors with app background `#EDEEEB
 - **THEN** every interactive control has a clearly visible `:focus-visible` state and a meaningful accessible name
 
 ### Requirement: Polished authentication screen
-The auth screen SHALL include product identity, concise heading, Google sign-in, divider, labeled email/password fields, sign-in/sign-up switching, and non-shifting loading and error presentation.
+The auth screen SHALL include product identity, a concise heading, labeled email/password fields, sign-in/sign-up switching, and non-shifting loading and error presentation. It SHALL preload the Documents route so a successful sign-in can transition promptly.
 
 #### Scenario: Authentication is pending
 - **WHEN** an auth request is in progress
@@ -30,14 +30,14 @@ The Documents screen SHALL provide heading, supporting copy, New document action
 - **THEN** stable table-shaped skeletons appear instead of a full-page spinner
 
 ### Requirement: Inline metadata editor
-The editor SHALL show a Documents/title breadcrumb, large inline title, inline Customer and Issue date controls, quiet Status label, status-aware Actions menu, and Finalize action for drafts. Draft actions SHALL omit print/export; finalized actions SHALL include print/export, Change to draft, Use as template, and Delete document. Text changes SHALL save on short debounce or blur, Enter/blur SHALL save the title, obvious invalid fields SHALL display restrained inline messages, and finalized metadata SHALL render read-only.
+The editor SHALL show a Documents/title breadcrumb, large inline title, inline Customer and Issue date controls, quiet Status label, status-aware Actions menu, and separate Save and Publish actions for drafts. Draft actions SHALL omit print/export; finalized actions SHALL include print/export, Change to draft, Use as template, and Delete document. Metadata changes SHALL remain local until Save is activated, obvious invalid fields SHALL display restrained inline messages after validation, and finalized metadata SHALL render read-only.
 
 #### Scenario: Metadata save succeeds
-- **WHEN** a draft metadata edit is valid
-- **THEN** the interface moves from "Saving..." to "Saved" and reconciles with the server without a routine success toast
+- **WHEN** a user activates Save with valid draft metadata
+- **THEN** the interface persists the local draft, reconciles with the server, and communicates completion without blocking further editing
 
 #### Scenario: Metadata save fails validation
-- **WHEN** a metadata edit is invalid
+- **WHEN** Save finds an invalid metadata edit
 - **THEN** the relevant field retains focus/value and displays its associated message
 
 ### Requirement: Spreadsheet-like line-item grid
@@ -45,14 +45,14 @@ The editor SHALL use a non-virtualized grid with columns for row number, Descrip
 
 #### Scenario: Local preview reconciles
 - **WHEN** a user changes a valid numerical draft value
-- **THEN** calculated cells preview immediately using the shared policy, save on blur or Enter, and reconcile with server-returned values without layout shift
+- **THEN** calculated cells preview immediately using the shared policy, remain local until Save, and reconcile with server-returned values without layout shift
 
 #### Scenario: Discount mode changes
 - **WHEN** a user selects None, %, or Fixed
 - **THEN** the compact editor displays only the compatible value semantics and clears incompatible state
 
 ### Requirement: Spreadsheet keyboard behavior
-Within editable grid cells, Enter SHALL save and focus the next logical editable cell; Shift+Enter SHALL insert a line below the active row and focus its Description; Tab and Shift+Tab SHALL traverse editable cells predictably; Escape SHALL restore the last saved value where an edit is uncommitted. New rows SHALL focus Description, and deletion SHALL focus the closest sensible surviving cell.
+Within editable grid cells, Enter SHALL focus the next logical editable cell without causing a request; Shift+Enter SHALL insert a line below the active row and focus its Description; Tab and Shift+Tab SHALL traverse editable cells predictably; Escape SHALL restore the last server-saved value where an edit is uncommitted. New rows SHALL focus Description, and deletion SHALL focus the closest sensible surviving cell.
 
 #### Scenario: Shift+Enter adds a row
 - **WHEN** focus is in any editable cell and the user presses Shift+Enter
@@ -62,15 +62,15 @@ Within editable grid cells, Enter SHALL save and focus the next logical editable
 - **WHEN** a cell has an unsaved local value and the user presses Escape
 - **THEN** the last server-confirmed value is restored without a mutation
 
-### Requirement: Autosave sequencing and feedback
-Text mutations SHALL use a short debounce while numerical cells save on blur or Enter. The interface SHALL show subtle Saving, Saved, and validation-failure states; prevent finalization while saves are pending; cancel or sequence requests so stale responses cannot overwrite newer state; and reserve toasts for finalization, duplication, deletion, export failure, or network/document-level failures.
+### Requirement: Explicit save coordination and feedback
+Metadata and line-item field edits SHALL remain local until the user activates Save. Save SHALL validate all changed fields, persist metadata and changed lines in server-version order, prevent duplicate submission, retain unsaved values after a partial or failed request, and reconcile only server-confirmed values. Publish SHALL require a clean saved draft. Toasts SHALL be reserved for completed explicit actions and network/document-level failures.
 
-#### Scenario: Finalization is attempted during save
-- **WHEN** any editor mutation remains pending
-- **THEN** the Finalize action stays disabled until the mutation settles
+#### Scenario: Publish is attempted with unsaved changes
+- **WHEN** the user activates Publish while local changes have not been saved
+- **THEN** the interface keeps the document editable and directs the user to save first
 
 #### Scenario: Server reports finalized conflict
-- **WHEN** autosave receives `DOCUMENT_FINALIZED`
+- **WHEN** Save receives `DOCUMENT_FINALIZED`
 - **THEN** the interface shows the server message, refetches, and transitions to the finalized read-only presentation
 
 ### Requirement: Finalization confirmation
@@ -81,7 +81,7 @@ Choosing Finalize SHALL open an accessible, focus-trapped confirmation dialog ex
 - **THEN** the system finalizes once, closes the dialog, announces success, and renders the document read-only
 
 ### Requirement: Accessible interaction and responsive quality
-The application SHALL use semantic tables/forms/dialogs, explicit labels, validation associations, accessible icon-button names and tooltips, focus trapping/restoration, and sufficient contrast. It SHALL avoid full-page spinners for ordinary mutations, avoid horizontal page overflow at normal laptop widths, preserve focus and cursor during autosave, and provide useful not-found behavior for missing or unowned documents.
+The application SHALL use semantic tables/forms/dialogs, explicit labels, validation associations, accessible icon-button names and tooltips, focus trapping/restoration, and sufficient contrast. It SHALL avoid full-page spinners for ordinary mutations, avoid horizontal page overflow at normal laptop widths, preserve focus and cursor while editing, and provide useful not-found behavior for missing or unowned documents. A slim green top progress bar SHALL indicate client-side route transitions and application API requests. The Documents screen SHALL preload Reports while active.
 
 #### Scenario: Editor is used without a mouse
 - **WHEN** a user completes metadata edits, line edits, line insertion/removal, and finalization using only a keyboard
