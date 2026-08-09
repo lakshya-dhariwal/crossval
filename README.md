@@ -17,6 +17,11 @@ Live application: https://crossval-pricing.vercel.app
 - Summary reports default to finalized documents and support an **Include drafts** option.
 - Keyboard-friendly line editing, confirmation modals, accessible validation, toasts, and loading states.
 
+<img width="1710" height="986" alt="Screenshot 2026-08-09 at 10 36 51 PM" src="https://github.com/user-attachments/assets/84f9d651-7b6f-4629-a53b-b5d08f428906" />
+<img width="1710" height="986" alt="Screenshot 2026-08-09 at 10 36 39 PM" src="https://github.com/user-attachments/assets/d017bcaf-8a93-484b-8d87-721aec8e22c3" />
+<img width="1710" height="986" alt="Screenshot 2026-08-09 at 10 33 41 PM" src="https://github.com/user-attachments/assets/f61d2a6e-57be-484f-9ae2-c3369fc92095" />
+
+
 ## Technology
 
 Next.js App Router, TypeScript, Supabase Auth/Postgres/RLS, Zod, Decimal.js, Lucide, Sonner, `next-nprogress-bar`, and Vitest.
