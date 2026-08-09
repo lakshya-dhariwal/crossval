@@ -12,6 +12,7 @@
     "test": "vitest run",
     "demo:seed": "tsx scripts/seed-demo.ts",
     "security:audit": "tsx scripts/security-audit.ts",
+    "check:finalization": "tsx scripts/check-finalization.ts",
     "smoke:api": "tsx scripts/smoke-api.ts"
   },
   "dependencies": {

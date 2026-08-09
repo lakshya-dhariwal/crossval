@@ -33,7 +33,8 @@ export function errorFromUnknown(error: unknown) {
     );
   if (
     message.includes("DOCUMENT_VERSION_CONFLICT") ||
-    message.includes("DOCUMENT_NOT_FINALIZED")
+    message.includes("DOCUMENT_NOT_FINALIZED") ||
+    message.includes("INVALID_DOCUMENT_TRANSITION")
   )
     return new AppError(
       "DOCUMENT_VERSION_CONFLICT",
