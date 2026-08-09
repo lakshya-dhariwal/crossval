@@ -3,6 +3,7 @@
 Crossval is a pricing-document calculator for creating drafts, calculating line-item discounts and tax, publishing finalized documents, and reviewing summary reports.
 
 Live application: https://crossval-pricing.vercel.app
+
 Video Demo: https://drive.google.com/file/d/1l5L-pkIPGtG7BVgiO9-W3k9L-ANJOpBT/view
 
 ## Features
