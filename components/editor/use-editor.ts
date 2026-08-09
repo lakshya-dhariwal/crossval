@@ -365,10 +365,6 @@ export function useEditor(initial: DocumentDetail) {
   }
 
   function requestPublish() {
-    if (hasUnsavedChanges) {
-      toast.info("Save your changes before publishing.");
-      return;
-    }
     setConfirm(true);
   }
 
@@ -471,10 +467,6 @@ export function useEditor(initial: DocumentDetail) {
   }
 
   async function finalize() {
-    if (hasUnsavedChanges) {
-      requestPublish();
-      return;
-    }
     setWorking(true);
     setError("");
     setFieldErrors({});
@@ -484,7 +476,19 @@ export function useEditor(initial: DocumentDetail) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ version: docRef.current.version }),
+          body: JSON.stringify({
+            ...metadataRef.current,
+            version: docRef.current.version,
+            lineItems: doc.lineItems.map((line) => ({
+              id: line.id,
+              description: line.description,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
+              discountType: line.discountType,
+              discountValue: line.discountValue,
+              taxPercent: line.taxPercent,
+            })),
+          }),
         },
       );
       const json = (await response

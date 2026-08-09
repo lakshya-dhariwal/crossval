@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  finalizeDocumentSchema,
   lineInputSchema,
   metadataSchema,
   patchMetadataSchema,
@@ -98,5 +99,26 @@ describe("request schemas", () => {
       reportQuerySchema.safeParse({ from: "2026-08-09", to: "2026-08-09" })
         .success,
     ).toBe(true);
+  });
+  it("accepts a complete publish snapshot and rejects calculated fields", () => {
+    const snapshot = {
+      title: "Pricing document",
+      customer: "Acme",
+      issueDate: "2026-08-09",
+      version: 1,
+      lineItems: [
+        {
+          id: "d1e25a6e-87fc-449e-964e-3aeb4e0079af",
+          ...valid,
+        },
+      ],
+    };
+    expect(finalizeDocumentSchema.safeParse(snapshot).success).toBe(true);
+    expect(
+      finalizeDocumentSchema.safeParse({
+        ...snapshot,
+        lineItems: [{ ...snapshot.lineItems[0], lineTotal: "999.00" }],
+      }).success,
+    ).toBe(false);
   });
 });

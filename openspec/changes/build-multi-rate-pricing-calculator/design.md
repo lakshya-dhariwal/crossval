@@ -107,39 +107,39 @@ Create enum types `document_status ('draft','finalized')` and `discount_type ('n
 
 `documents`:
 
-| Column | PostgreSQL type | Rules |
-|---|---|---|
-| `id` | `uuid` | PK, `gen_random_uuid()` |
-| `user_id` | `uuid` | not null, FK `auth.users(id)` on delete cascade |
-| `title` | `text` | not null, draft may temporarily be blank; trim/required on finalize |
-| `customer` | `text` | not null default `''`; required on finalize |
-| `issue_date` | `date` | not null |
-| `status` | `document_status` | not null default `draft` |
-| `subtotal` | `numeric(19,2)` | not null default 0, non-negative |
-| `total_discount` | `numeric(19,2)` | not null default 0, non-negative |
-| `total_tax` | `numeric(19,2)` | not null default 0, non-negative |
-| `grand_total` | `numeric(19,2)` | not null default 0, non-negative |
-| `version` | `bigint` | not null default 1, increments per mutation |
-| `sample_key` | `text` | nullable; `assignment-v1` only for starter row |
-| `created_at` | `timestamptz` | not null default now |
-| `updated_at` | `timestamptz` | not null default now |
-| `finalized_at` | `timestamptz` | nullable; required exactly when finalized |
+| Column           | PostgreSQL type   | Rules                                                               |
+| ---------------- | ----------------- | ------------------------------------------------------------------- |
+| `id`             | `uuid`            | PK, `gen_random_uuid()`                                             |
+| `user_id`        | `uuid`            | not null, FK `auth.users(id)` on delete cascade                     |
+| `title`          | `text`            | not null, draft may temporarily be blank; trim/required on finalize |
+| `customer`       | `text`            | not null default `''`; required on finalize                         |
+| `issue_date`     | `date`            | not null                                                            |
+| `status`         | `document_status` | not null default `draft`                                            |
+| `subtotal`       | `numeric(19,2)`   | not null default 0, non-negative                                    |
+| `total_discount` | `numeric(19,2)`   | not null default 0, non-negative                                    |
+| `total_tax`      | `numeric(19,2)`   | not null default 0, non-negative                                    |
+| `grand_total`    | `numeric(19,2)`   | not null default 0, non-negative                                    |
+| `version`        | `bigint`          | not null default 1, increments per mutation                         |
+| `sample_key`     | `text`            | nullable; `assignment-v1` only for starter row                      |
+| `created_at`     | `timestamptz`     | not null default now                                                |
+| `updated_at`     | `timestamptz`     | not null default now                                                |
+| `finalized_at`   | `timestamptz`     | nullable; required exactly when finalized                           |
 
 `line_items`:
 
-| Column | PostgreSQL type | Rules |
-|---|---|---|
-| `id` | `uuid` | PK, `gen_random_uuid()` |
-| `document_id` | `uuid` | not null, FK documents on delete cascade |
-| `position` | `integer` | not null, >= 1, unique per document |
-| `description` | `text` | not null default `''`; required on finalize |
-| `quantity` | `numeric(13,4)` | not null, 1..999999999 |
-| `unit_price` | `numeric(19,4)` | not null, 0..999999999999 |
-| `discount_type` | `discount_type` | not null default `none` |
-| `discount_value` | `numeric(19,4)` | not null default 0; semantic precision validated by mode |
-| `tax_percent` | `numeric(7,4)` | not null default 0, 0..100 |
+| Column           | PostgreSQL type | Rules                                                                                            |
+| ---------------- | --------------- | ------------------------------------------------------------------------------------------------ |
+| `id`             | `uuid`          | PK, `gen_random_uuid()`                                                                          |
+| `document_id`    | `uuid`          | not null, FK documents on delete cascade                                                         |
+| `position`       | `integer`       | not null, >= 1, unique per document                                                              |
+| `description`    | `text`          | not null default `''`; required on finalize                                                      |
+| `quantity`       | `numeric(13,4)` | not null, 1..999999999                                                                           |
+| `unit_price`     | `numeric(19,4)` | not null, 0..999999999999                                                                        |
+| `discount_type`  | `discount_type` | not null default `none`                                                                          |
+| `discount_value` | `numeric(19,4)` | not null default 0; semantic precision validated by mode                                         |
+| `tax_percent`    | `numeric(7,4)`  | not null default 0, 0..100                                                                       |
 | computed columns | `numeric(19,2)` | `subtotal`, `discount_amount`, `discounted_amount`, `tax_amount`, `line_total`, all non-negative |
-| timestamps | `timestamptz` | created/updated, not null |
+| timestamps       | `timestamptz`   | created/updated, not null                                                                        |
 
 Add database checks for coarse bounds and compatible discount state (`none` requires value zero; percentage max 100). Application schemas provide precise precision and messages. Add unique `(user_id, sample_key)` where sample key is not null, unique `(document_id, position)`, indexes on `(user_id, updated_at desc)`, `(user_id, issue_date)`, `(user_id, status)`, and `(document_id, position)`.
 
@@ -198,7 +198,9 @@ Standard JSON error:
     "code": "VALIDATION_ERROR",
     "message": "Please correct the highlighted fields.",
     "fields": {
-      "lineItems.2.discountValue": ["Fixed discount cannot exceed the line subtotal."]
+      "lineItems.2.discountValue": [
+        "Fixed discount cannot exceed the line subtotal."
+      ]
     }
   }
 }
@@ -259,11 +261,11 @@ clean -> locally_dirty -> saving -> saved
                        \-> conflict -> refetch -> clean/read_only
 ```
 
-No field change initiates a request. Metadata and raw line drafts remain local and numerical fields preview through the shared calculator. Save validates the complete changed set, then applies metadata and changed-line requests serially with each latest server version. Successfully committed portions are removed from the dirty set; a failed or partial save retains all remaining local values and reconciles the latest confirmed server snapshot. Publish requires a clean draft so finalization never races unsaved edits.
+No field change initiates a request. Metadata and raw line drafts remain local and numerical fields preview through the shared calculator. Save validates the complete changed set, then applies metadata and changed-line requests serially with each latest server version. Successfully committed portions are removed from the dirty set; a failed or partial save retains all remaining local values and reconciles the latest confirmed server snapshot. Publish submits the complete current local snapshot and the expected server version to one backend operation, which validates, recalculates, saves, and finalizes through one atomic persistence call.
 
 Keep DOM inputs mounted and keyed by stable line IDs to preserve cursor and focus. Store refs by `lineId:field`. Define editable traversal order as Description, Qty, Unit price, Discount value/type, Tax for each row. Enter advances without a request; Shift+Enter prevents default, inserts below, then focuses Description from the committed response. Escape resets the local row to its server value. Deletion captures current coordinates and focuses same-column next row, previous row, or Add line in that order.
 
-Use `aria-live="polite"` for explicit save state and document-level errors, `aria-describedby` for field errors, accessible names for icon buttons, and focus management for menus/dialog. Save and Publish expose icons and pending states; Publish refuses unsaved drafts. Use `next-nprogress-bar` as a slim green top indicator for App Router navigation and client-side `/api/` requests. Prefetch Documents from the auth screen and Reports while the Documents area is active.
+Use `aria-live="polite"` for explicit save state and document-level errors, `aria-describedby` for field errors, accessible names for icon buttons, and focus management for menus/dialog. Save and Publish expose icons and pending states; Publish saves and finalizes in one user action. Use `next-nprogress-bar` as a slim green top indicator for App Router navigation and client-side `/api/` requests. Prefetch Documents from the auth screen and Reports while the Documents area is active.
 
 ### 12. Documents, reports, and output flows
 

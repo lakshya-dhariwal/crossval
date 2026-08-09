@@ -11,66 +11,95 @@ const nonNegative = (scale: number) =>
     (value) => !value.startsWith("-"),
     "Value cannot be negative.",
   );
+const lineInputFields = {
+  description: z.string().max(500),
+  quantity: decimal(4, "Quantity must be a decimal with up to 4 places."),
+  unitPrice: nonNegative(4),
+  discountType: z.enum(["none", "percentage", "fixed"]),
+  discountValue: nonNegative(4),
+  taxPercent: nonNegative(4),
+};
+
+const refineLineInput = (
+  value: {
+    quantity: string;
+    unitPrice: string;
+    discountType: DiscountType;
+    discountValue: string;
+    taxPercent: string;
+  },
+  ctx: z.RefinementCtx,
+) => {
+  if (Number(value.quantity) < 1)
+    ctx.addIssue({
+      code: "custom",
+      path: ["quantity"],
+      message: "Quantity must be at least 1.",
+    });
+  if (Number(value.quantity) > 999999999)
+    ctx.addIssue({
+      code: "custom",
+      path: ["quantity"],
+      message: "Quantity is too large.",
+    });
+  if (Number(value.unitPrice) > 999999999999)
+    ctx.addIssue({
+      code: "custom",
+      path: ["unitPrice"],
+      message: "Unit price is too large.",
+    });
+  if (Number(value.taxPercent) > 100)
+    ctx.addIssue({
+      code: "custom",
+      path: ["taxPercent"],
+      message: "Tax must be between 0 and 100.",
+    });
+  if (value.discountType === "none" && value.discountValue !== "0")
+    ctx.addIssue({
+      code: "custom",
+      path: ["discountValue"],
+      message: "A line without a discount must use 0.",
+    });
+  if (value.discountType === "percentage" && Number(value.discountValue) > 100)
+    ctx.addIssue({
+      code: "custom",
+      path: ["discountValue"],
+      message: "Discount must be between 0 and 100.",
+    });
+  if (
+    value.discountType === "fixed" &&
+    value.discountValue.split(".")[1]?.length > 2
+  )
+    ctx.addIssue({
+      code: "custom",
+      path: ["discountValue"],
+      message: "Fixed discounts support up to 2 decimal places.",
+    });
+};
+
 export const lineInputSchema = z
-  .object({
-    description: z.string().max(500),
-    quantity: decimal(4, "Quantity must be a decimal with up to 4 places."),
-    unitPrice: nonNegative(4),
-    discountType: z.enum(["none", "percentage", "fixed"]),
-    discountValue: nonNegative(4),
-    taxPercent: nonNegative(4),
-  })
+  .object(lineInputFields)
   .strict()
-  .superRefine((value, ctx) => {
-    if (Number(value.quantity) < 1)
-      ctx.addIssue({
-        code: "custom",
-        path: ["quantity"],
-        message: "Quantity must be at least 1.",
-      });
-    if (Number(value.quantity) > 999999999)
-      ctx.addIssue({
-        code: "custom",
-        path: ["quantity"],
-        message: "Quantity is too large.",
-      });
-    if (Number(value.unitPrice) > 999999999999)
-      ctx.addIssue({
-        code: "custom",
-        path: ["unitPrice"],
-        message: "Unit price is too large.",
-      });
-    if (Number(value.taxPercent) > 100)
-      ctx.addIssue({
-        code: "custom",
-        path: ["taxPercent"],
-        message: "Tax must be between 0 and 100.",
-      });
-    if (value.discountType === "none" && value.discountValue !== "0")
-      ctx.addIssue({
-        code: "custom",
-        path: ["discountValue"],
-        message: "A line without a discount must use 0.",
-      });
-    if (
-      value.discountType === "percentage" &&
-      Number(value.discountValue) > 100
-    )
-      ctx.addIssue({
-        code: "custom",
-        path: ["discountValue"],
-        message: "Discount must be between 0 and 100.",
-      });
-    if (
-      value.discountType === "fixed" &&
-      value.discountValue.split(".")[1]?.length > 2
-    )
-      ctx.addIssue({
-        code: "custom",
-        path: ["discountValue"],
-        message: "Fixed discounts support up to 2 decimal places.",
-      });
-  });
+  .superRefine(refineLineInput);
+
+export const finalizeDocumentSchema = z
+  .object({
+    title: z.string().max(240),
+    customer: z.string().max(240),
+    issueDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid issue date."),
+    version: z.number().int().positive(),
+    lineItems: z
+      .array(
+        z
+          .object({ id: z.string().uuid(), ...lineInputFields })
+          .strict()
+          .superRefine(refineLineInput),
+      )
+      .min(1, "Add at least one line item."),
+  })
+  .strict();
 export const metadataSchema = z
   .object({
     title: z.string().max(240),
@@ -118,3 +147,4 @@ export const reportQuerySchema = z
 export type LineInput = z.infer<typeof lineInputSchema> & {
   discountType: DiscountType;
 };
+export type FinalizeDocumentInput = z.infer<typeof finalizeDocumentSchema>;

@@ -6,7 +6,10 @@ import {
   calculateLineItem,
   sampleLines,
 } from "@/lib/domain/calculations";
-import { lineInputSchema } from "@/lib/domain/schemas";
+import {
+  lineInputSchema,
+  type FinalizeDocumentInput,
+} from "@/lib/domain/schemas";
 import type {
   CalculatedLineItem,
   DocumentDetail,
@@ -369,38 +372,63 @@ export async function deleteLine(
 export async function finalizeDocument(
   userId: string,
   id: string,
-  version: number,
+  values: FinalizeDocumentInput,
   db?: SupabaseClient,
 ) {
   const current = await getOwnedDocument(userId, id, db);
   assertEditable(current);
-  if (version !== current.version)
+  if (values.version !== current.version)
     throw new AppError(
       "DOCUMENT_VERSION_CONFLICT",
       "This document changed elsewhere. Refresh and try again.",
       409,
     );
+  const currentIds = new Set(
+    current.lineItems
+      .map((line) => line.id)
+      .filter((lineId): lineId is string => Boolean(lineId)),
+  );
+  const submittedIds = new Set(values.lineItems.map((line) => line.id));
+  if (
+    submittedIds.size !== values.lineItems.length ||
+    currentIds.size !== submittedIds.size ||
+    [...currentIds].some((lineId) => !submittedIds.has(lineId))
+  )
+    throw new AppError(
+      "DOCUMENT_VERSION_CONFLICT",
+      "The document lines changed elsewhere. Refresh and try again.",
+      409,
+    );
+
   const fields: Record<string, string[]> = {};
-  if (!current.title.trim()) fields.title = ["Title is required."];
-  if (!current.customer.trim()) fields.customer = ["Customer is required."];
-  if (!current.lineItems.length)
-    fields.lineItems = ["Add at least one line item."];
-  current.lineItems.forEach((line, index) => {
+  if (!values.title.trim()) fields.title = ["Title is required."];
+  if (!values.customer.trim()) fields.customer = ["Customer is required."];
+  values.lineItems.forEach((line, index) => {
     if (!line.description.trim())
       fields[`lineItems.${index}.description`] = ["Description is required."];
   });
   if (Object.keys(fields).length)
     throw new AppError(
       "VALIDATION_ERROR",
-      "Please complete the document before finalizing.",
+      "Please complete the document before publishing.",
       422,
       fields,
     );
+  const lines = values.lineItems.map(({ id: lineId, ...line }) => ({
+    ...validateLine(line),
+    id: lineId,
+  }));
   return persist(
     userId,
     current,
-    current.lineItems,
-    { status: "finalized", finalizedAt: new Date().toISOString() },
+    lines,
+    {
+      title: values.title,
+      customer: values.customer,
+      issueDate: values.issueDate,
+      status: "finalized",
+      finalizedAt: new Date().toISOString(),
+    },
     db,
   );
 }

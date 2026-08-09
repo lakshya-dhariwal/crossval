@@ -105,7 +105,7 @@
 ## 11. Finalization Experience
 
 - [x] 11.1 Build the accessible finalize dialog with exact immutability/template copy, focus trap/restoration, Cancel and Finalize document actions, and duplicate-submit protection.
-- [x] 11.2 Require users to Save before Publish, submit the current saved version, display indexed validation errors at their fields, and announce meaningful success or failure.
+- [x] 11.2 Submit the complete current editor snapshot on Publish, atomically save and finalize it in one backend operation, display indexed validation errors at their fields, and announce meaningful success or failure without requiring a second click.
 - [x] 11.3 Verify direct metadata and line add/patch/delete requests against a finalized document receive the exact HTTP 409 envelope while explicit reversal and deletion routes remain owner-scoped.
 
 ## 12. Summary Reports

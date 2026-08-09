@@ -293,7 +293,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
       <ConfirmDialog
         open={editor.confirm}
         title="Publish this document?"
-        description="Publishing makes the document read-only until you change it back to a draft. You can still print it or use it as a template."
+        description="Publishing saves your current changes and makes the document read-only until you change it back to a draft. You can still print it or use it as a template."
         confirmLabel="Publish document"
         pending={editor.working || editor.saving}
         onCancel={() => editor.setConfirm(false)}

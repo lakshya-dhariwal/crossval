@@ -47,7 +47,7 @@ async function main() {
         customer: "Integration check",
         issue_date: new Date().toISOString().slice(0, 10),
       })
-      .select("id, version")
+      .select("id, version, issue_date")
       .single();
     if (createError || !created) {
       throw (
@@ -63,9 +63,9 @@ async function main() {
         p_user_id: signedIn.data.user.id,
         p_document_id: created.id,
         p_expected_version: created.version,
-        p_title: "Finalization check",
-        p_customer: "Integration check",
-        p_issue_date: new Date().toISOString().slice(0, 10),
+        p_title: "Unsaved title published atomically",
+        p_customer: "Unsaved customer",
+        p_issue_date: created.issue_date,
         p_status: "finalized",
         p_finalized_at: new Date().toISOString(),
         p_subtotal: "10.00",
@@ -75,7 +75,7 @@ async function main() {
         p_lines: [
           {
             position: 1,
-            description: "Finalization check line",
+            description: "Unsaved line published atomically",
             quantity: "1",
             unitPrice: "10",
             discountType: "none",
@@ -92,7 +92,22 @@ async function main() {
     );
     if (finalizeError) throw finalizeError;
 
-    console.log("Database finalization check passed.");
+    const { data: finalized, error: readError } = await admin
+      .from("documents")
+      .select("status, title, line_items(description)")
+      .eq("id", created.id)
+      .single();
+    if (readError) throw readError;
+    if (
+      finalized?.status !== "finalized" ||
+      finalized.title !== "Unsaved title published atomically" ||
+      finalized.line_items[0]?.description !==
+        "Unsaved line published atomically"
+    ) {
+      throw new Error("Finalization did not persist the submitted snapshot.");
+    }
+
+    console.log("Atomic save-and-finalize check passed.");
   } finally {
     if (documentId) {
       const { error } = await admin
