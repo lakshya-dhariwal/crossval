@@ -20,11 +20,33 @@ export type CalculatedLineItem = RawLineItem & {
   lineTotal: string;
 };
 
-export type DocumentTotals = { subtotal: string; totalDiscount: string; totalTax: string; grandTotal: string };
+export type DocumentTotals = {
+  subtotal: string;
+  totalDiscount: string;
+  totalTax: string;
+  grandTotal: string;
+};
 export type DocumentDetail = DocumentTotals & {
-  id: string; title: string; customer: string; issueDate: string; status: DocumentStatus;
-  finalizedAt: string | null; createdAt: string; updatedAt: string; version: number;
-  lineItems: CalculatedLineItem[]; itemCount: number;
+  id: string;
+  title: string;
+  customer: string;
+  issueDate: string;
+  status: DocumentStatus;
+  finalizedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  lineItems: CalculatedLineItem[];
+  itemCount: number;
 };
 
-export type DocumentSummary = Pick<DocumentDetail, "id" | "title" | "customer" | "issueDate" | "status" | "grandTotal" | "updatedAt"> & { itemCount: number };
+export type DocumentSummary = Pick<
+  DocumentDetail,
+  | "id"
+  | "title"
+  | "customer"
+  | "issueDate"
+  | "status"
+  | "grandTotal"
+  | "updatedAt"
+> & { itemCount: number };

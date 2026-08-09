@@ -9,11 +9,24 @@ export type DocumentOutput = {
   totalDiscount: string;
   totalTax: string;
   grandTotal: string;
-  lineItems: Array<{ id?: string; description: string; quantity: string; unitPrice: string; discount: string; taxAmount: string; lineTotal: string }>;
+  lineItems: Array<{
+    id?: string;
+    description: string;
+    quantity: string;
+    unitPrice: string;
+    discount: string;
+    taxAmount: string;
+    lineTotal: string;
+  }>;
 };
 
-export function discountLabel(type: "none" | "percentage" | "fixed", value: string) {
-  return type === "none" ? "—" : `${value}${type === "percentage" ? "%" : " dollars"}`;
+export function discountLabel(
+  type: "none" | "percentage" | "fixed",
+  value: string,
+) {
+  return type === "none"
+    ? "—"
+    : `${value}${type === "percentage" ? "%" : " dollars"}`;
 }
 
 export function toOutputViewModel(document: DocumentDetail): DocumentOutput {
@@ -26,6 +39,14 @@ export function toOutputViewModel(document: DocumentDetail): DocumentOutput {
     totalDiscount: document.totalDiscount,
     totalTax: document.totalTax,
     grandTotal: document.grandTotal,
-    lineItems: document.lineItems.map((line) => ({ id: line.id, description: line.description || "—", quantity: line.quantity, unitPrice: line.unitPrice, discount: discountLabel(line.discountType, line.discountValue), taxAmount: line.taxAmount, lineTotal: line.lineTotal })),
+    lineItems: document.lineItems.map((line) => ({
+      id: line.id,
+      description: line.description || "—",
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      discount: discountLabel(line.discountType, line.discountValue),
+      taxAmount: line.taxAmount,
+      lineTotal: line.lineTotal,
+    })),
   };
 }

@@ -1,2 +1,4 @@
 import { redirect } from "next/navigation";
-export default function HomePage() { redirect("/documents"); }
+export default function HomePage() {
+  redirect("/documents");
+}

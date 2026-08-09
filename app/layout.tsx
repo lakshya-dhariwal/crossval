@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   description: "A calm workspace for pricing documents and proposals.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}<ToastHost /></body></html>;
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <ToastHost />
+      </body>
+    </html>
+  );
 }

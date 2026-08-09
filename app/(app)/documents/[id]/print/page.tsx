@@ -5,4 +5,81 @@ import { PrintButton } from "@/components/outputs/print-button";
 import type { DocumentDetail } from "@/lib/domain/types";
 import { toOutputViewModel } from "@/lib/services/output-view-model";
 type Props = { params: Promise<{ id: string }> };
-export default async function PrintPage({ params }: Props) { const { id } = await params; const user = await requirePageUser(); let document: DocumentDetail; try { document = await getOwnedDocument(user.id, id); } catch { notFound(); } const output = toOutputViewModel(document!); return <main className="print-page"><div className="print-sheet"><div className="print-toolbar"><PrintButton /></div><header className="print-header"><div><div className="eyebrow">Crossval pricing document</div><h1>{output.title}</h1><p style={{ marginTop: 9 }}><span className={`status ${output.statusLabel.toLowerCase()}`}>{output.statusLabel}</span></p></div><div className="print-meta">{output.customer}<br />Issue date: {output.issueDate}</div></header><table className="print-items"><thead><tr><th>Description</th><th className="right">Qty</th><th className="right">Unit price</th><th>Discount</th><th className="right">Tax</th><th className="right">Line total</th></tr></thead><tbody>{output.lineItems.map((line) => <tr key={line.id}><td>{line.description}</td><td className="right numeric">{line.quantity}</td><td className="right numeric">${line.unitPrice}</td><td>{line.discount}</td><td className="right numeric">${line.taxAmount}</td><td className="right numeric">${line.lineTotal}</td></tr>)}</tbody></table><div className="print-totals"><div><span>Subtotal</span><strong>${output.subtotal}</strong></div><div><span>Discount</span><strong>−${output.totalDiscount}</strong></div><div><span>Tax</span><strong>${output.totalTax}</strong></div><div className="grand"><span>Grand total</span><strong>${output.grandTotal}</strong></div></div></div></main>; }
+export default async function PrintPage({ params }: Props) {
+  const { id } = await params;
+  const user = await requirePageUser();
+  let document: DocumentDetail;
+  try {
+    document = await getOwnedDocument(user.id, id);
+  } catch {
+    notFound();
+  }
+  const output = toOutputViewModel(document!);
+  return (
+    <main className="print-page">
+      <div className="print-sheet">
+        <div className="print-toolbar">
+          <PrintButton />
+        </div>
+        <header className="print-header">
+          <div>
+            <div className="eyebrow">Crossval pricing document</div>
+            <h1>{output.title}</h1>
+            <p style={{ marginTop: 9 }}>
+              <span className={`status ${output.statusLabel.toLowerCase()}`}>
+                {output.statusLabel}
+              </span>
+            </p>
+          </div>
+          <div className="print-meta">
+            {output.customer}
+            <br />
+            Issue date: {output.issueDate}
+          </div>
+        </header>
+        <table className="print-items">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th className="right">Qty</th>
+              <th className="right">Unit price</th>
+              <th>Discount</th>
+              <th className="right">Tax</th>
+              <th className="right">Line total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {output.lineItems.map((line) => (
+              <tr key={line.id}>
+                <td>{line.description}</td>
+                <td className="right numeric">{line.quantity}</td>
+                <td className="right numeric">${line.unitPrice}</td>
+                <td>{line.discount}</td>
+                <td className="right numeric">${line.taxAmount}</td>
+                <td className="right numeric">${line.lineTotal}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="print-totals">
+          <div>
+            <span>Subtotal</span>
+            <strong>${output.subtotal}</strong>
+          </div>
+          <div>
+            <span>Discount</span>
+            <strong>−${output.totalDiscount}</strong>
+          </div>
+          <div>
+            <span>Tax</span>
+            <strong>${output.totalTax}</strong>
+          </div>
+          <div className="grand">
+            <span>Grand total</span>
+            <strong>${output.grandTotal}</strong>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
