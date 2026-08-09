@@ -1,65 +1,57 @@
 # Crossval
 
-Crossval is a small pricing-document workspace. It helps a user create a draft, edit pricing lines, apply one discount and one tax rate per line, review exact totals, finalize the document, print it, export HTML, and reuse either a draft or a finalized document as a template.
+Crossval is a pricing-document calculator for creating drafts, calculating line-item discounts and tax, publishing finalized documents, and reviewing summary reports.
 
-## Product tour
+Live application: https://crossval-pricing.vercel.app
 
-- Sign in or create an account with email and password.
-- Open **Documents** to search and filter drafts and finalized documents.
-- Open a document to edit its metadata and spreadsheet-like line grid.
-- Use `None`, `%`, or `Fixed` for a line discount. Tax is a percentage.
-- Press Enter to move through cells. Shift+Enter adds a line below. Escape restores the last saved cell value. Use **Save** to keep a draft, or **Publish** to save and finalize in one action.
-- Finalize only after the required fields are complete. A finalized document is read-only until you explicitly change it back to a draft.
-- Draft actions include **Use as template** and **Delete document**. Finalized actions also include **Print / PDF**, **Export HTML**, **Change to draft**, and **Delete document**.
-- Use **Reports** for inclusive issue-date summaries; finalized documents are included by default, with an **Include drafts** toggle for working documents.
+## Features
 
-The interface is intentionally light-only and uses a quiet ledger style: neutral workspace background, white work surfaces, thin borders, compact tables, and green only for important actions and finalized states.
+- Email/password sign-up, sign-in, email confirmation, and sign-out.
+- Owner-scoped documents protected by Supabase RLS and API ownership checks.
+- Draft documents with editable metadata and line items.
+- Per-line percentage or fixed discounts and percentage tax.
+- Server-authoritative Decimal.js calculations.
+- Explicit **Save** for drafts.
+- **Publish** saves the current editor state and changes the document status to `finalized` in one atomic operation.
+- Finalized documents are read-only. Owners can change them back to `draft`, delete them, print them, export HTML, or use them as templates.
+- Summary reports default to finalized documents and support an **Include drafts** option.
+- Keyboard-friendly line editing, confirmation modals, accessible validation, toasts, and loading states.
 
-## Screenshots
+## Technology
 
-The local browser QA pass covers the Documents grid, editable line workspace, finalized read-only view, print view, and Reports table. The visual system is encoded in `app/globals.css` so a deployment screenshot can be added here without changing the product surface.
+Next.js App Router, TypeScript, Supabase Auth/Postgres/RLS, Zod, Decimal.js, Lucide, Sonner, `next-nprogress-bar`, and Vitest.
 
-## Stack and architecture
-
-Next.js App Router, strict TypeScript, Tailwind CSS, Supabase Auth/Postgres/RLS, `@supabase/ssr`, Zod, Decimal.js, Lucide, and Vitest.
-
-The request path is:
+The main boundaries are:
 
 ```text
-verified Supabase user
-        -> strict request schema
-        -> document service with ownership/lifecycle checks
-        -> one pure Decimal.js calculator
-        -> atomic snapshot RPC
-        -> RLS-protected PostgreSQL rows
+Route Handler -> request schema -> document/report service
+             -> Decimal.js calculation module -> atomic database RPC
+             -> owner-scoped PostgreSQL data
 ```
 
-Server Components protect initial pages and load owner-scoped data. Route Handlers protect REST mutations. Browser components manage forms, filters, local editor drafts, keyboard focus, menus, and print. The admin Supabase client is server-only and is used only after the session/user and document owner have been verified. The database RPC stores a complete server-calculated snapshot; it does not implement pricing formulas.
+Important directories:
 
-Important source areas:
-
-```text
-app/                         App Router pages and REST route handlers
-components/                  Shell, auth, documents, editor, reports, outputs
-lib/domain/calculations.ts   Decimal-safe authoritative calculation contract
-lib/domain/schemas.ts        Strict raw-input validation
-lib/services/                Ownership, lifecycle, reporting, output services
-utils/supabase/              Browser, cookie, middleware, server-only admin clients
-supabase/migrations/         Tables, constraints, triggers, RLS, snapshot RPC
-```
+| Directory              | Responsibility                                                             |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `app/`                 | Pages, protected routes, and REST handlers                                 |
+| `components/`          | Auth, application shell, documents, editor, reports, and UI                |
+| `lib/domain/`          | Types, validation, and calculation rules                                   |
+| `lib/services/`        | Ownership, lifecycle, reports, and output services                         |
+| `supabase/migrations/` | Tables, constraints, triggers, RLS, and snapshot RPCs                      |
+| `scripts/`             | Demo seed, security audit, smoke checks, and finalization regression check |
 
 ## Local setup
 
-Prerequisites: Node.js 20+, npm, a Supabase project, and the Supabase CLI.
+Requirements: Node.js 20+, npm, a Supabase project, and the Supabase CLI.
 
 ```bash
 npm install
 cp .env.example .env.local
-# Fill the values in .env.local. Never commit .env.local.
+# Fill in .env.local.
 npm run dev
 ```
 
-For this workspace, the target project is `zqyelslybeynzefdkctf`. Link and apply migrations with:
+Apply the database migrations:
 
 ```bash
 source .env.local
@@ -67,127 +59,129 @@ npx supabase link --project-ref zqyelslybeynzefdkctf --yes
 npx supabase db push --yes
 ```
 
-Configure Supabase Auth:
+In Supabase Auth:
 
-1. Enable the Email provider and choose whether email confirmation is required.
-2. Add `http://localhost:3000/auth/callback` and the deployed `https://your-domain/auth/callback` to the redirect allow-list.
-3. Set `NEXT_PUBLIC_SITE_URL` to the deployed origin in production.
+1. Enable the Email provider.
+2. Choose whether email confirmation is required.
+3. Add `http://localhost:3000/auth/callback` and the production callback URL to the redirect allow-list.
+4. Set `NEXT_PUBLIC_SITE_URL` to the application origin in production.
 
-## Environment
-
-| Variable                               | Used by         | Notes                                     |
-| -------------------------------------- | --------------- | ----------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`             | browser/server  | Public project URL                        |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser/server  | Safe with correct RLS                     |
-| `SUPABASE_SECRET_KEY`                  | server only     | Privileged key; never expose or commit    |
-| `SUPABASE_ACCESS_TOKEN`                | local CLI only  | Temporary CLI token; not application auth |
-| `NEXT_PUBLIC_SITE_URL`                 | Auth/deployment | Public application origin                 |
-| `DEMO_EMAIL`                           | demo seed       | Not rendered in the UI                    |
-| `DEMO_PASSWORD`                        | demo seed       | Share separately with the evaluator       |
-
-The demo account is created idempotently with:
+The optional demo seed creates one idempotent sample document for the configured demo account:
 
 ```bash
-source .env.local
 npm run demo:seed
 ```
 
-The sign-in page does not display a demo button or credentials. A normal email/password sign-in works for the configured demo account.
+## Environment variables
+
+| Variable                               | Use                                                        |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase URL used by browser and server                    |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public Supabase key; safe only with RLS                    |
+| `SUPABASE_SECRET_KEY`                  | Server-only privileged key for verified service operations |
+| `SUPABASE_ACCESS_TOKEN`                | Local Supabase CLI authentication only                     |
+| `NEXT_PUBLIC_SITE_URL`                 | Auth callback and deployment origin                        |
+| `DEMO_EMAIL` / `DEMO_PASSWORD`         | Optional demo seed credentials                             |
+
+Never commit `.env.local`, service keys, CLI tokens, or demo passwords.
 
 ## Calculation policy
 
-All raw decimal values remain strings at HTTP/form boundaries. Decimal.js uses `ROUND_HALF_UP` and 40 digits of precision. Money is rounded to two places at each line step:
+Raw decimal values remain strings at API and form boundaries. Decimal.js uses 40 digits of precision and `ROUND_HALF_UP`. Each line is rounded to two decimal places at every monetary step:
 
 ```text
 subtotal       = round2(quantity × unit price)
-discount       = round2(subtotal × percentage / 100), or fixed amount, or 0
+discount       = round2(subtotal × percentage / 100), fixed amount, or 0
 discounted     = round2(subtotal - discount)
 tax            = round2(discounted × tax percentage / 100)
 line total     = round2(discounted + tax)
 ```
 
-Document totals are sums of the already rounded line values. A fixed discount may equal the rounded subtotal but may not exceed it. Quantity is at least 1. Prices and discounts are non-negative. Percentages are between 0 and 100 inclusive. Exponent notation, non-finite values, malformed decimal strings, and excess precision are rejected.
+Document totals are sums of the already rounded line values. Quantity must be at least 1. Unit prices, discounts, and tax are non-negative. Percentages are between 0 and 100. A fixed discount may equal the subtotal but may not exceed it. Malformed decimals, exponent notation, non-finite values, and excess precision are rejected.
 
-The assignment sample gives:
+Assignment sample:
 
-```text
-Widget A       2 × $100, 10% discount, 5% tax  -> $189.00
-Widget B       1 × $50, no discount, 5% tax    -> $52.50
-Service fee    1 × $200, $20 fixed, no tax      -> $180.00
-Document subtotal $450.00, discount $40.00, tax $11.50, total $421.50
-```
+| Line        | Calculation                              | Line total |
+| ----------- | ---------------------------------------- | ---------: |
+| Widget A    | `2 × $100`, 10% discount, 5% tax         |  `$189.00` |
+| Widget B    | `1 × $50`, no discount, 5% tax           |   `$52.50` |
+| Service fee | `1 × $200`, `$20` fixed discount, no tax |  `$180.00` |
 
-The browser may preview with the same pure module, but the server validates raw inputs, recalculates every line, recalculates the document, and persists only its result. Browser totals are never trusted.
+Expected document totals: subtotal `$450.00`, discount `$40.00`, tax `$11.50`, grand total `$421.50`.
+
+The browser may preview calculations, but the server validates raw inputs, recalculates every line and document total, and persists only server-calculated values.
 
 ## Lifecycle and API
 
-Draft metadata and lines can be edited, added, reordered by insertion, or removed. Finalized metadata and lines are read-only, but an owner can explicitly change the document back to a draft or delete it. Database triggers and the service layer protect finalized line and metadata mutations. `Use as template` creates new IDs, copies raw pricing settings, sets today's issue date, resets status to draft, and does not modify the source.
+Documents have exactly two statuses: `draft` and `finalized`.
 
-Every JSON error uses:
+- Drafts are editable and support adding, editing, and removing line items.
+- Save stores the current draft. Unsaved local changes are not persisted across a refresh.
+- Publish sends the current metadata and line-item snapshot, validates it, recalculates totals, saves it, and sets status to `finalized` atomically.
+- Finalized documents reject metadata and line-item mutations with HTTP 409 and a clear error.
+- Owners may explicitly change a finalized document back to draft or delete it.
+- Template duplication creates a new draft with new IDs and does not modify the source.
+- Print and HTML export are available for finalized documents.
+
+| Method                   | Endpoint                                             | Purpose                                     |
+| ------------------------ | ---------------------------------------------------- | ------------------------------------------- |
+| `GET`, `POST`            | `/api/documents`                                     | List or create drafts                       |
+| `GET`, `PATCH`, `DELETE` | `/api/documents/:id`                                 | Read, edit, or delete a document            |
+| `POST`                   | `/api/documents/:id/finalize`                        | Save and finalize a complete snapshot       |
+| `POST`                   | `/api/documents/:id/revert`                          | Change finalized status back to draft       |
+| `POST`                   | `/api/documents/:id/duplicate`                       | Create a new draft from a template          |
+| `GET`, `POST`            | `/api/documents/:id/line-items`                      | Read or add line items                      |
+| `PATCH`, `DELETE`        | `/api/documents/:id/line-items/:lineItemId`          | Edit or remove a line item                  |
+| `GET`                    | `/api/reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Inclusive summary report                    |
+| `GET`                    | `/api/documents/:id/export/html`                     | Escaped HTML export for finalized documents |
+
+Validation errors use a stable envelope with field paths such as `lineItems.0.quantity`:
 
 ```json
 {
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Please correct the highlighted fields.",
-    "fields": { "lineItems.0.quantity": ["Quantity must be at least 1."] }
+    "message": "Please complete the document before publishing.",
+    "fields": {
+      "lineItems.0.quantity": ["Quantity must be at least 1."]
+    }
   }
 }
 ```
 
-| Method           | Endpoint                                             | Purpose                                   |
-| ---------------- | ---------------------------------------------------- | ----------------------------------------- |
-| GET/POST         | `/api/documents`                                     | List or create drafts                     |
-| GET/PATCH/DELETE | `/api/documents/:id`                                 | Read/edit/delete a document               |
-| POST             | `/api/documents/:id/finalize`                        | Finalize once                             |
-| POST             | `/api/documents/:id/revert`                          | Change a finalized document back to draft |
-| POST             | `/api/documents/:id/duplicate`                       | Create a template copy                    |
-| GET/POST         | `/api/documents/:id/line-items`                      | Read/add lines                            |
-| PATCH/DELETE     | `/api/documents/:id/line-items/:lineItemId`          | Edit/remove a line                        |
-| GET              | `/api/reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Inclusive report                          |
-| GET              | `/api/documents/:id/export/html`                     | Standalone escaped HTML                   |
+## Security and ownership
 
-Print uses the browser's Print / Save as PDF flow rather than a server PDF renderer. HTML export embeds its own CSS and escapes all user text.
-
-## Security notes
-
-- Identity comes from verified Supabase Auth, never from a request body.
-- Protected pages and APIs require a session; missing and unowned IDs resolve to the same not-found behavior.
-- RLS is enabled and forced on both tables. Policies scope rows to `auth.uid()` and draft-only mutations.
-- Finalized triggers protect read-only metadata/line state and permit only the explicit status reversal or owner-scoped deletion paths.
-- The privileged snapshot RPC is revoked from `public`, `anon`, and `authenticated`; only `service_role` can execute it.
-- User-controlled search is passed through Supabase query builders, not interpolated SQL. Output HTML escapes `&`, `<`, `>`, quotes, and apostrophes.
-- No user tokens, secret keys, full document exports, or privileged key values are logged or sent to clients.
-- `SUPABASE_SECRET_KEY`, `SUPABASE_ACCESS_TOKEN`, and demo passwords belong only in ignored environment configuration. Rotate temporary credentials before a real deployment.
+- Supabase Auth supplies identity; user IDs are never accepted from request bodies.
+- Protected pages and APIs require an authenticated session.
+- RLS is enabled and forced for documents and line items.
+- Services verify ownership before every mutation.
+- Database triggers enforce finalized read-only behavior.
+- The snapshot RPC is available only to `service_role` and is called only after ownership checks.
+- User text is escaped in HTML output, and user search is passed through query builders.
 
 ## Verification
 
 ```bash
+npm run format
 npm run lint
 npm run typecheck
 npm test
 npm run security:audit
 npm audit --omit=dev --audit-level=high
+npm run check:finalization
 npm run build
 ```
 
-With the local server and Supabase environment loaded, `npm run smoke:api` signs in as the private demo account and checks ownership, CRUD, totals, exports, reports, cleanup, finalized read-only mutations, and finalized-to-draft/deletion lifecycle without printing credentials.
+`npm test` covers calculation order, Decimal rounding, fixed-discount boundaries, invalid numeric combinations, output formatting, and HTML escaping. `check:finalization` verifies the production database trigger and atomic save-and-finalize path. `smoke:api` covers authentication, ownership, CRUD, reports, exports, lifecycle transitions, and finalized immutability when the local app and demo environment are available.
 
-The unit suite covers the assignment sample, half-up rounding, fixed-discount rejection, percentage-before-tax behavior, line-level rounding, boundary discounts, invalid numeric combinations, output formatting, and HTML escaping. `npm run security:audit` performs an AST-based source scan for dangerous code patterns and secret-like values. After configuring Supabase, also verify the migration, two-user RLS isolation, finalized triggers, email confirmation, and the demo account with the browser flow.
+## Assumptions and production follow-ups
 
-## Assumptions and trade-offs
-
-- USD is the single display currency; currency selection and locale-aware tax rules are outside the brief.
-- A browser print flow is required instead of exact server-generated PDF bytes, so output can vary slightly by browser/OS.
-- Documents are intentionally single-user; teams, sharing, audit history, payments, invoice numbering, and co-editing are not part of this take-home app.
-- The initial document list is unpaginated because the brief targets take-home scale; the query boundary can later add cursor pagination.
-- The migration uses a server-calculated materialized snapshot RPC to keep line totals and document totals atomic without duplicating formulas in SQL.
-- Email delivery settings and the final deployment domain are external configuration steps and are not inventable in source code.
+- USD is the display currency.
+- Tax is a simple per-line percentage and is not tax-compliance software.
+- Documents are single-user; teams, sharing, audit history, and co-editing are outside this assignment.
+- The document list is intentionally unpaginated for take-home scale.
+- Before production launch, add automated route/service/component tests, browser visual regression coverage, pagination, audit history, and monitoring around RPC failures.
 
 ## Deployment
 
-Deployed URL: not deployed in this workspace because deployment authority and a production domain were not provided.
-
-Deploy to Vercel after applying migrations. Set the public variables and rotated `SUPABASE_SECRET_KEY` in the Vercel environment, configure Supabase redirect URLs, run the build, then smoke-test sign-in, sample data, editing, finalization, duplication, reports, print, and HTML export. Do not put the temporary CLI token in Vercel runtime environment unless a deployment operation explicitly needs it.
-
-Rollback posture: keep the previous Vercel deployment available, revert the application deployment first, and only apply backwards-compatible database migrations. Never roll back by deleting tables or dropping columns that an older application still needs; use a follow-up migration to remove deprecated fields after the old deployment is no longer serving traffic.
+The live application is available at https://crossval-pricing.vercel.app. Deployment requires the Supabase migrations, production environment variables, email callback allow-list, and a rotated server secret. After deployment, run the browser flow and `smoke:api` against the production URL. Keep the previous Vercel deployment available for rollback and use additive database migrations.

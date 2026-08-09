@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requirePageUser } from "@/lib/auth/require-user";
-import { getOwnedDocument } from "@/lib/services/documents";
+import { getOwnedFinalizedDocument } from "@/lib/services/documents";
 import { PrintButton } from "@/components/outputs/print-button";
 import type { DocumentDetail } from "@/lib/domain/types";
 import { toOutputViewModel } from "@/lib/services/output-view-model";
@@ -10,7 +10,7 @@ export default async function PrintPage({ params }: Props) {
   const user = await requirePageUser();
   let document: DocumentDetail;
   try {
-    document = await getOwnedDocument(user.id, id);
+    document = await getOwnedFinalizedDocument(user.id, id);
   } catch {
     notFound();
   }

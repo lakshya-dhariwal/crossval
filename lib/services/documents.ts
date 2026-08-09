@@ -85,6 +85,21 @@ export async function getOwnedDocument(
   return detailFromRows(doc, lines ?? []);
 }
 
+export async function getOwnedFinalizedDocument(
+  userId: string,
+  id: string,
+  db?: SupabaseClient,
+) {
+  const document = await getOwnedDocument(userId, id, db);
+  if (document.status !== "finalized")
+    throw new AppError(
+      "OUTPUT_NOT_AVAILABLE",
+      "Print and export are available after the document is finalized.",
+      409,
+    );
+  return document;
+}
+
 export async function listDocuments(
   userId: string,
   search = "",
@@ -407,10 +422,26 @@ export async function finalizeDocument(
       422,
       fields,
     );
-  const lines = values.lineItems.map(({ id: lineId, ...line }) => ({
-    ...validateLine(line),
-    id: lineId,
-  }));
+  const lines = values.lineItems.map(({ id: lineId, ...line }, index) => {
+    try {
+      return { ...validateLine(line), id: lineId };
+    } catch (error) {
+      if (error instanceof AppError && error.fields) {
+        throw new AppError(
+          error.code,
+          error.message,
+          error.status,
+          Object.fromEntries(
+            Object.entries(error.fields).map(([field, messages]) => [
+              `lineItems.${index}.${field}`,
+              messages,
+            ]),
+          ),
+        );
+      }
+      throw error;
+    }
+  });
   return persist(
     userId,
     current,

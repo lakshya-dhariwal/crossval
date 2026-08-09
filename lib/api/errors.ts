@@ -4,6 +4,7 @@ export type ErrorCode =
   | "VALIDATION_ERROR"
   | "DOCUMENT_FINALIZED"
   | "DOCUMENT_VERSION_CONFLICT"
+  | "OUTPUT_NOT_AVAILABLE"
   | "BAD_REQUEST"
   | "INTERNAL_ERROR";
 export class AppError extends Error {

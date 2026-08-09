@@ -18,6 +18,28 @@ const projectUrl = supabaseUrl;
 const publicKey = publishableKey;
 
 type ApiResult = { response: Response; body: unknown };
+type PublishDocument = {
+  title: string;
+  customer: string;
+  issueDate: string;
+  version: number;
+  lineItems: Array<{
+    id: string;
+    description: string;
+    quantity: string;
+    unitPrice: string;
+    discountType: "none" | "percentage" | "fixed";
+    discountValue: string;
+    taxPercent: string;
+  }>;
+};
+const publishBody = (document: PublishDocument) => ({
+  title: document.title,
+  customer: document.customer,
+  issueDate: document.issueDate,
+  version: document.version,
+  lineItems: document.lineItems,
+});
 async function main() {
   const auth = createClient(projectUrl, publicKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -164,11 +186,10 @@ async function main() {
       body: JSON.stringify({ title: "", version: current.version }),
     });
     status(invalidFinalizeMeta, 200, "allow draft metadata validation state");
+    const invalidState = dataOf<PublishDocument>(invalidFinalizeMeta);
     const invalidFinalize = await api(`/api/documents/${createdId}/finalize`, {
       method: "POST",
-      body: JSON.stringify({
-        version: dataOf<{ version: number }>(invalidFinalizeMeta).version,
-      }),
+      body: JSON.stringify(publishBody(invalidState)),
     });
     status(invalidFinalize, 422, "invalid finalization");
     expect(
@@ -218,9 +239,7 @@ async function main() {
     );
     const createdFinalized = await api(`/api/documents/${createdId}/finalize`, {
       method: "POST",
-      body: JSON.stringify({
-        version: dataOf<{ version: number }>(updatedLine).version,
-      }),
+      body: JSON.stringify(publishBody(dataOf<PublishDocument>(updatedLine))),
     });
     status(createdFinalized, 200, "finalize smoke document");
     const reverted = await api(`/api/documents/${createdId}/revert`, {
@@ -238,9 +257,7 @@ async function main() {
     );
     const finalizedAgain = await api(`/api/documents/${createdId}/finalize`, {
       method: "POST",
-      body: JSON.stringify({
-        version: dataOf<{ version: number }>(reverted).version,
-      }),
+      body: JSON.stringify(publishBody(dataOf<PublishDocument>(reverted))),
     });
     status(finalizedAgain, 200, "re-finalize smoke document");
     const deletedFinalized = await api(`/api/documents/${createdId}`, {
