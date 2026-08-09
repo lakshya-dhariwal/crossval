@@ -1,0 +1,6 @@
+"use client";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { FileText, BarChart3, LogOut } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+export function AppShell({ email, children }: { email: string; children: React.ReactNode }) { const pathname = usePathname(); const router = useRouter(); async function signOut() { await createClient().auth.signOut(); router.push("/auth"); } return <div className="app-shell"><aside className="sidebar"><Link className="brand" href="/documents"><span className="brand-mark">C</span><span>Crossval</span></Link><nav className="nav" aria-label="Primary"><Link className={`nav-link ${pathname.startsWith("/documents") ? "active" : ""}`} href="/documents"><FileText size={16} /><span>Documents</span></Link><Link className={`nav-link ${pathname.startsWith("/reports") ? "active" : ""}`} href="/reports"><BarChart3 size={16} /><span>Reports</span></Link></nav><div className="account"><div className="account-email" title={email}>{email}</div><button className="nav-link" style={{ border: 0, width: "100%", cursor: "pointer", background: "transparent" }} onClick={signOut}><LogOut size={16} /><span>Sign out</span></button></div></aside><main className="main"><div className="content-width">{children}</div></main></div>; }
