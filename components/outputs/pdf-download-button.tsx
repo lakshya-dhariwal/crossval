@@ -21,6 +21,7 @@ export function PdfDownloadButton({
   async function download() {
     setBusy(true);
     let frame: HTMLIFrameElement | null = null;
+    let renderStyle: HTMLStyleElement | null = null;
     try {
       const response = await fetch(`/api/documents/${documentId}/export/html`);
       if (!response.ok) {
@@ -35,6 +36,8 @@ export function PdfDownloadButton({
       frame.style.width = "860px";
       frame.style.height = "1px";
       frame.style.border = "0";
+      frame.style.visibility = "hidden";
+      frame.style.pointerEvents = "none";
       document.body.appendChild(frame);
       const frameDocument = frame.contentDocument;
       if (!frameDocument) {
@@ -50,6 +53,10 @@ export function PdfDownloadButton({
       if (!target) {
         throw new Error("Could not prepare the document output.");
       }
+      renderStyle = document.createElement("style");
+      renderStyle.textContent =
+        ".html2pdf__overlay{z-index:-1!important;pointer-events:none!important;}";
+      document.head.appendChild(renderStyle);
       await html2pdf()
         .set({
           margin: [12, 12, 12, 12],
@@ -68,6 +75,7 @@ export function PdfDownloadButton({
     } catch {
       toast.error("Could not create the PDF. Please try again.");
     } finally {
+      renderStyle?.remove();
       frame?.remove();
       setBusy(false);
     }
