@@ -40,6 +40,7 @@ describe("document output safety", () => {
     const html = htmlForDocument(document);
     expect(html).not.toContain("<script>alert");
     expect(html).toContain("&lt;script&gt;");
+    expect(html).not.toContain("Finalized");
     expect(safeFilename(document.title)).toBe("quote-june");
   });
 });

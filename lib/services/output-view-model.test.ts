@@ -52,6 +52,7 @@ describe("document output view model", () => {
     expect(html).toContain("Acme &amp; Co.");
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
+    expect(html).not.toContain("Finalized");
   });
 
   it("uses a human-readable label for fixed discounts", () => {
