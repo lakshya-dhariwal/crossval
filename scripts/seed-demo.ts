@@ -44,7 +44,7 @@ async function main() {
       .from("documents")
       .insert({
         user_id: user.id,
-        title: "Sample Pricing Document",
+        title: "Sample document",
         customer: "Acme Corp",
         issue_date: new Date().toISOString().slice(0, 10),
         sample_key: "assignment-v1",

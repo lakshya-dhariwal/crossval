@@ -4,7 +4,7 @@ export type DocumentOutput = {
   title: string;
   customer: string;
   issueDate: string;
-  statusLabel: "Draft" | "Final";
+  statusLabel: "Draft" | "Finalized";
   subtotal: string;
   totalDiscount: string;
   totalTax: string;
@@ -34,7 +34,7 @@ export function toOutputViewModel(document: DocumentDetail): DocumentOutput {
     title: document.title || "Untitled document",
     customer: document.customer || "No customer",
     issueDate: document.issueDate,
-    statusLabel: document.status === "finalized" ? "Final" : "Draft",
+    statusLabel: document.status === "finalized" ? "Finalized" : "Draft",
     subtotal: document.subtotal,
     totalDiscount: document.totalDiscount,
     totalTax: document.totalTax,

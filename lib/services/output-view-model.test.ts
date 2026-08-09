@@ -37,7 +37,7 @@ function fixture(): DocumentDetail {
 describe("document output view model", () => {
   it("normalizes shared output labels and keeps calculated values", () => {
     const output = toOutputViewModel(fixture());
-    expect(output.statusLabel).toBe("Final");
+    expect(output.statusLabel).toBe("Finalized");
     expect(output.customer).toBe("Acme & Co.");
     expect(output.lineItems[0]).toMatchObject({
       description: "<script>",

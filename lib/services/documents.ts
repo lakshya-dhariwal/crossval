@@ -528,16 +528,24 @@ export async function ensureSampleDocument(userId: string) {
   const supabase = createAdminClient();
   const { data: existing } = await supabase
     .from("documents")
-    .select("id")
+    .select("id,title,status")
     .eq("user_id", userId)
     .eq("sample_key", "assignment-v1")
     .maybeSingle();
-  if (existing) return;
+  if (existing) {
+    if (existing.status === "draft" && existing.title !== "Sample document")
+      await supabase
+        .from("documents")
+        .update({ title: "Sample document" })
+        .eq("id", existing.id)
+        .eq("user_id", userId);
+    return;
+  }
   const lines = sampleLines.map(calculateLineItem);
   const admin = createAdminClient();
   const { error } = await admin.rpc("create_document_snapshot", {
     p_user_id: userId,
-    p_title: "Sample Pricing Document",
+    p_title: "Sample document",
     p_customer: "Acme Corp",
     p_issue_date: new Date().toISOString().slice(0, 10),
     p_sample_key: "assignment-v1",

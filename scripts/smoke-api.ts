@@ -95,7 +95,7 @@ async function main() {
   const documents =
     dataOf<Array<{ id: string; status: string; title: string }>>(listed);
   const sample = documents.find(
-    (document) => document.title === "Sample Pricing Document",
+    (document) => document.title === "Sample document",
   );
   const finalized = documents.find(
     (document) => document.status === "finalized",

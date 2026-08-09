@@ -42,7 +42,7 @@ The system MUST derive `user_id` from the authenticated session and MUST NOT acc
 - **THEN** row-level security restricts the operation to rows owned by that authenticated user
 
 ### Requirement: Idempotent starter document
-Each newly authenticated user SHALL receive exactly one ordinary draft titled "Sample Pricing Document" for "Acme Corp" containing the three assignment sample line items and the expected authoritative totals. Provisioning SHALL be safe to retry and SHALL not create duplicates.
+Each newly authenticated user SHALL receive exactly one ordinary draft titled "Sample document" for "Acme Corp" containing the three assignment sample line items and the expected authoritative totals. Provisioning SHALL be safe to retry and SHALL not create duplicates.
 
 #### Scenario: First successful account setup
 - **WHEN** a user account is initialized for the first time
