@@ -8,7 +8,10 @@ import type {
   DocumentDetail,
   RawLineItem,
 } from "@/lib/domain/types";
-import { calculateLineItem } from "@/lib/domain/calculations";
+import {
+  calculateDocument,
+  calculateLineItem,
+} from "@/lib/domain/calculations";
 import {
   errorMessage,
   type FieldErrors,
@@ -176,14 +179,14 @@ export function useEditor(initial: DocumentDetail) {
   async function saveLine(line: CalculatedLineItem, raw: RawLineItem) {
     if (docRef.current.status === "finalized") return;
     const preview = calculateLineItem(raw);
-    setDoc((current) => ({
-      ...current,
-      lineItems: current.lineItems.map((item) =>
+    setDoc((current) => {
+      const lineItems = current.lineItems.map((item) =>
         item.id === line.id
           ? { ...preview, id: line.id, position: line.position }
           : item,
-      ),
-    }));
+      );
+      return { ...current, ...calculateDocument(lineItems), lineItems };
+    });
     await enqueue(async (current) => {
       const currentLine = current.lineItems.find((item) => item.id === line.id);
       if (!currentLine) throw new Error("Line item no longer exists.");

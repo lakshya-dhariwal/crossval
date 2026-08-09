@@ -75,6 +75,10 @@ export function EditorRow({
   }
 
   async function commit() {
+    if (commitTimer.current) {
+      clearTimeout(commitTimer.current);
+      commitTimer.current = null;
+    }
     if (readOnly || !dirty.current) return true;
     const sequence = ++editSequence.current;
     const next = draftRef.current;
@@ -96,7 +100,10 @@ export function EditorRow({
 
   function scheduleCommit() {
     if (commitTimer.current) clearTimeout(commitTimer.current);
-    commitTimer.current = setTimeout(() => void commit(), 500);
+    commitTimer.current = setTimeout(() => {
+      commitTimer.current = null;
+      void commit();
+    }, 500);
   }
 
   function key(event: KeyboardEvent<HTMLInputElement>, field: Field) {
@@ -203,7 +210,10 @@ export function EditorRow({
           disabled={readOnly}
           inputMode="decimal"
           onFocus={focusNumber}
-          onChange={(event) => set("quantity", event.target.value)}
+          onChange={(event) => {
+            set("quantity", event.target.value);
+            scheduleCommit();
+          }}
           onBlur={() => void commit()}
           onKeyDown={(event) => key(event, "quantity")}
           aria-label={`Line ${line.position} quantity`}
@@ -221,7 +231,10 @@ export function EditorRow({
           disabled={readOnly}
           inputMode="decimal"
           onFocus={focusNumber}
-          onChange={(event) => set("unitPrice", event.target.value)}
+          onChange={(event) => {
+            set("unitPrice", event.target.value);
+            scheduleCommit();
+          }}
           onBlur={() => void commit()}
           onKeyDown={(event) => key(event, "unitPrice")}
           aria-label={`Line ${line.position} unit price`}
@@ -240,7 +253,10 @@ export function EditorRow({
             disabled={readOnly || draft.discountType === "none"}
             inputMode="decimal"
             onFocus={focusNumber}
-            onChange={(event) => set("discountValue", event.target.value)}
+            onChange={(event) => {
+              set("discountValue", event.target.value);
+              scheduleCommit();
+            }}
             onBlur={() => void commit()}
             onKeyDown={(event) => key(event, "discountValue")}
             aria-label={`Line ${line.position} discount value`}
@@ -287,7 +303,10 @@ export function EditorRow({
           disabled={readOnly}
           inputMode="decimal"
           onFocus={focusNumber}
-          onChange={(event) => set("taxPercent", event.target.value)}
+          onChange={(event) => {
+            set("taxPercent", event.target.value);
+            scheduleCommit();
+          }}
           onBlur={() => void commit()}
           onKeyDown={(event) => key(event, "taxPercent")}
           aria-label={`Line ${line.position} tax percent`}

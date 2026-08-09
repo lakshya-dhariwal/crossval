@@ -58,25 +58,23 @@ async function main() {
     if (error || !document)
       throw error ?? new Error("Could not create demo document.");
     const lines = sampleLines.map(calculateLineItem);
-    const { error: lineError } = await admin
-      .from("line_items")
-      .insert(
-        lines.map((line, index) => ({
-          document_id: document.id,
-          position: index + 1,
-          description: line.description,
-          quantity: line.quantity,
-          unit_price: line.unitPrice,
-          discount_type: line.discountType,
-          discount_value: line.discountValue,
-          tax_percent: line.taxPercent,
-          subtotal: line.subtotal,
-          discount_amount: line.discountAmount,
-          discounted_amount: line.discountedAmount,
-          tax_amount: line.taxAmount,
-          line_total: line.lineTotal,
-        })),
-      );
+    const { error: lineError } = await admin.from("line_items").insert(
+      lines.map((line, index) => ({
+        document_id: document.id,
+        position: index + 1,
+        description: line.description,
+        quantity: line.quantity,
+        unit_price: line.unitPrice,
+        discount_type: line.discountType,
+        discount_value: line.discountValue,
+        tax_percent: line.taxPercent,
+        subtotal: line.subtotal,
+        discount_amount: line.discountAmount,
+        discounted_amount: line.discountedAmount,
+        tax_amount: line.taxAmount,
+        line_total: line.lineTotal,
+      })),
+    );
     if (lineError) throw lineError;
   }
   console.log(`Demo account ready: ${email}`);

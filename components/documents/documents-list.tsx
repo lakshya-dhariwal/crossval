@@ -39,6 +39,7 @@ export function DocumentsList() {
     id: string;
     finalized: boolean;
   } | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const search = params.get("search") ?? "";
   const status = (params.get("status") ?? "all") as
     "all" | "draft" | "finalized";
@@ -83,12 +84,28 @@ export function DocumentsList() {
     router.replace(`/documents?${q.toString()}`);
   }
   async function create() {
-    const r = await fetch("/api/documents", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-    if (r.ok) router.push(`/documents/${(await r.json()).data.id}`);
+    try {
+      const r = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const json = (await r.json().catch(() => null)) as {
+        data?: { id: string };
+        error?: { message?: string };
+      } | null;
+      if (!r.ok || !json?.data)
+        throw new Error(
+          json?.error?.message ?? "Could not create the document.",
+        );
+      router.push(`/documents/${json.data.id}`);
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : "Could not create the document.",
+      );
+    }
   }
   function closeMenu() {
     setMenu(null);
@@ -108,10 +125,28 @@ export function DocumentsList() {
     });
   }
   async function duplicate(id: string) {
-    const r = await fetch(`/api/documents/${id}/duplicate`, { method: "POST" });
-    closeMenu();
-    if (r.ok) router.push(`/documents/${(await r.json()).data.id}`);
-    else toast.error("Could not create the template copy.");
+    try {
+      const r = await fetch(`/api/documents/${id}/duplicate`, {
+        method: "POST",
+      });
+      const json = (await r.json().catch(() => null)) as {
+        data?: { id: string };
+        error?: { message?: string };
+      } | null;
+      closeMenu();
+      if (r.ok && json?.data) router.push(`/documents/${json.data.id}`);
+      else
+        toast.error(
+          json?.error?.message ?? "Could not create the template copy.",
+        );
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : "Could not create the template copy.",
+      );
+      closeMenu();
+    }
   }
   async function changeToDraft(id: string) {
     const response = await fetch(`/api/documents/${id}/revert`, {
@@ -140,16 +175,31 @@ export function DocumentsList() {
     closeMenu();
   }
   async function remove(id: string, finalized: boolean) {
-    setDeleteTarget(null);
-    const response = await fetch(`/api/documents/${id}`, { method: "DELETE" });
-    if (!response.ok) {
-      toast.error("Could not delete this document.");
+    setDeleteBusy(true);
+    try {
+      const response = await fetch(`/api/documents/${id}`, {
+        method: "DELETE",
+      });
+      const json = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      if (!response.ok) {
+        toast.error(json?.error?.message ?? "Could not delete this document.");
+        return;
+      }
+      setRows((current) => current.filter((row) => row.id !== id));
+      setDeleteTarget(null);
+      toast.success(finalized ? "Document deleted." : "Draft deleted.");
       closeMenu();
-      return;
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : "Could not delete this document.",
+      );
+    } finally {
+      setDeleteBusy(false);
     }
-    setRows((current) => current.filter((row) => row.id !== id));
-    toast.success(finalized ? "Document deleted." : "Draft deleted.");
-    closeMenu();
   }
   return (
     <>
@@ -390,6 +440,7 @@ export function DocumentsList() {
         }
         confirmLabel="Delete document"
         danger
+        pending={deleteBusy}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => {
           if (deleteTarget)
