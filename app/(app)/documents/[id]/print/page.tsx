@@ -25,11 +25,6 @@ export default async function PrintPage({ params }: Props) {
           <div>
             <div className="eyebrow">Crossval pricing document</div>
             <h1>{output.title}</h1>
-            <p style={{ marginTop: 9 }}>
-              <span className={`status ${output.statusLabel.toLowerCase()}`}>
-                {output.statusLabel}
-              </span>
-            </p>
           </div>
           <div className="print-meta">
             {output.customer}

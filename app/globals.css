@@ -1131,11 +1131,31 @@ h1 {
   }
 }
 @media print {
+  html,
   body {
     background: white;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .app-shell {
+    display: block;
+    min-height: 0;
+  }
+  .sidebar {
+    display: none;
+  }
+  .main {
+    padding: 0;
+    overflow: visible;
+  }
+  .content-width {
+    max-width: none;
   }
   .print-page {
     padding: 0;
+    min-height: 0;
+    overflow: visible;
   }
   .print-toolbar {
     display: none;
