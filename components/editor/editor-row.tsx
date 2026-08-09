@@ -195,8 +195,10 @@ export function EditorRow({
         <input
           data-cell={`${line.id}:unitPrice`}
           {...unitPriceProps}
-          className={`${unitPriceProps.className} numeric`}
-          type="text"
+          className={`${unitPriceProps.className} numeric no-stepper`}
+          type="number"
+          min="0"
+          step="any"
           value={draft.unitPrice}
           disabled={readOnly}
           inputMode="decimal"
@@ -211,8 +213,10 @@ export function EditorRow({
           <input
             data-cell={`${line.id}:discountValue`}
             {...discountProps}
-            className={`${discountProps.className} numeric`}
-            type="text"
+            className={`${discountProps.className} numeric no-stepper`}
+            type="number"
+            min="0"
+            step="any"
             value={draft.discountType === "none" ? "0" : draft.discountValue}
             disabled={readOnly || draft.discountType === "none"}
             inputMode="decimal"

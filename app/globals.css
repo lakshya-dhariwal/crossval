@@ -639,6 +639,15 @@ h1 {
 .cell-input.numeric {
   text-align: right;
 }
+.cell-input.no-stepper {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.cell-input.no-stepper::-webkit-inner-spin-button,
+.cell-input.no-stepper::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
 .readonly-cell {
   background: #f7f8f6;
   color: #4e5952;
