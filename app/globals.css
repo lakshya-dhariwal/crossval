@@ -857,6 +857,39 @@ h1 {
   height: 22px;
   border: 0;
 }
+.skeleton-card {
+  display: block;
+  height: 58px;
+  border: 0;
+  border-radius: 6px;
+}
+.api-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1100;
+  height: 3px;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--green);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: opacity 120ms ease;
+}
+.api-progress.visible {
+  opacity: 1;
+  animation: api-progress 1.2s ease-in-out infinite;
+}
+@keyframes api-progress {
+  0% {
+    transform: scaleX(0.08);
+  }
+  55% {
+    transform: scaleX(0.72);
+  }
+  100% {
+    transform: scaleX(0.96);
+  }
+}
 .date-controls {
   display: flex;
   gap: 10px;

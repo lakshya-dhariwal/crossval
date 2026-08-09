@@ -8,6 +8,7 @@ type ConfirmDialogProps = {
   description: string;
   confirmLabel: string;
   pending?: boolean;
+  pendingLabel?: string;
   danger?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -19,6 +20,7 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   pending = false,
+  pendingLabel = "Working…",
   danger = false,
   onCancel,
   onConfirm,
@@ -92,7 +94,7 @@ export function ConfirmDialog({
             disabled={pending}
             onClick={onConfirm}
           >
-            {pending ? "Working…" : confirmLabel}
+            {pending ? pendingLabel : confirmLabel}
           </button>
         </div>
       </div>

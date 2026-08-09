@@ -53,6 +53,11 @@ export function EditorRow({
     update({ ...draft, [field]: value });
   }
 
+  function setNumeric(field: Field, value: string, wholeNumber = false) {
+    const pattern = wholeNumber ? /^\d*$/ : /^\d*(?:\.\d*)?$/;
+    if (pattern.test(value)) set(field, value);
+  }
+
   function key(event: KeyboardEvent<HTMLInputElement>, field: Field) {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -179,9 +184,9 @@ export function EditorRow({
           step="1"
           value={draft.quantity}
           disabled={readOnly}
-          inputMode="decimal"
+          inputMode="numeric"
           onFocus={focusNumber}
-          onChange={(event) => set("quantity", event.target.value)}
+          onChange={(event) => setNumeric("quantity", event.target.value, true)}
           onKeyDown={(event) => key(event, "quantity")}
           aria-label={`Line ${line.position} quantity`}
         />
@@ -196,7 +201,7 @@ export function EditorRow({
           disabled={readOnly}
           inputMode="decimal"
           onFocus={focusNumber}
-          onChange={(event) => set("unitPrice", event.target.value)}
+          onChange={(event) => setNumeric("unitPrice", event.target.value)}
           onKeyDown={(event) => key(event, "unitPrice")}
           aria-label={`Line ${line.position} unit price`}
         />
@@ -212,7 +217,9 @@ export function EditorRow({
             disabled={readOnly || draft.discountType === "none"}
             inputMode="decimal"
             onFocus={focusNumber}
-            onChange={(event) => set("discountValue", event.target.value)}
+            onChange={(event) =>
+              setNumeric("discountValue", event.target.value)
+            }
             onKeyDown={(event) => key(event, "discountValue")}
             aria-label={`Line ${line.position} discount value`}
           />

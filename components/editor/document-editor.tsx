@@ -295,6 +295,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
         title="Publish this document?"
         description="Publishing saves your current changes and changes the document status to Finalized. It becomes read-only until you change it back to a draft, but remains printable and reusable as a template."
         confirmLabel="Publish document"
+        pendingLabel="Publishing…"
         pending={editor.working || editor.saving}
         onCancel={() => editor.setConfirm(false)}
         onConfirm={() => void editor.finalize()}
