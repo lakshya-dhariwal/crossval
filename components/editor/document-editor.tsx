@@ -122,13 +122,16 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
             </label>
             <div className="meta-field">
               <span className="meta-label">Status</span>
-              <span className={`status ${doc.status}`}>
+              <strong>
                 {doc.status === "finalized" ? "Finalized" : "Draft"}
-              </span>
+              </strong>
             </div>
           </div>
         </div>
         <div className="editor-actions">
+          {doc.status === "finalized" && (
+            <span className="status finalized">Finalized</span>
+          )}
           <div className="menu-wrap">
             <button
               className="button actions-button"
@@ -212,9 +215,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
                 <Send size={15} aria-hidden="true" /> Publish
               </button>
             </>
-          ) : (
-            <span className="status finalized">Finalized</span>
-          )}
+          ) : null}
         </div>
       </div>
 

@@ -44,7 +44,9 @@ export function PdfDownloadButton({
       frameDocument.write(html);
       frameDocument.close();
       await frameDocument.fonts.ready;
-      const target = frameDocument.body;
+      // Capture the full standalone document so html2pdf preserves its
+      // embedded stylesheet when it clones the source into its render layer.
+      const target = frameDocument.documentElement;
       if (!target) {
         throw new Error("Could not prepare the document output.");
       }
