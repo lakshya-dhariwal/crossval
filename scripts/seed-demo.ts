@@ -34,11 +34,20 @@ async function main() {
   }
   const existing = await admin
     .from("documents")
-    .select("id")
+    .select("id,title,status")
     .eq("user_id", user.id)
     .eq("sample_key", "assignment-v1")
     .maybeSingle();
-  if (!existing.data) {
+  if (existing.data) {
+    if (
+      existing.data.status === "draft" &&
+      existing.data.title !== "Sample document"
+    )
+      await admin
+        .from("documents")
+        .update({ title: "Sample document" })
+        .eq("id", existing.data.id);
+  } else {
     const totals = calculateDocument(sampleLines.map(calculateLineItem));
     const { data: document, error } = await admin
       .from("documents")
