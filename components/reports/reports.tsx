@@ -280,7 +280,7 @@ export function Reports() {
                     <td className="muted">{row.customer || "—"}</td>
                     <td>
                       <span className={`status ${row.status}`}>
-                        {row.status === "finalized" ? "Final" : "Draft"}
+                        {row.status === "finalized" ? "Finalized" : "Draft"}
                       </span>
                     </td>
                     <td className="right numeric">

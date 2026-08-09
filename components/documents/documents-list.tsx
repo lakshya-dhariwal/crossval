@@ -315,7 +315,7 @@ export function DocumentsList() {
                     <td className="muted">{date(row.issueDate)}</td>
                     <td>
                       <span className={`status ${row.status}`}>
-                        {row.status === "finalized" ? "Final" : "Draft"}
+                        {row.status === "finalized" ? "Finalized" : "Draft"}
                       </span>
                     </td>
                     <td className="muted">{row.itemCount}</td>

@@ -96,7 +96,7 @@
 - [x] 10.3 Build compact None/%/Fixed discount editing that clears incompatible values and an integrated percentage tax editor without ugly number spinners.
 - [x] 10.4 Keep all text/numeric cell edits local until Save, show immediate Decimal previews and local errors, and reconcile the full committed snapshot without total-panel layout shift.
 - [x] 10.5 Implement native Tab/Shift+Tab editable-cell traversal, request-free Enter-to-next, Escape restore, and explicit focus refs in Description/Qty/Unit price/Discount/Tax order.
-- [x] 10.6 Implement Shift+Enter insert directly below the active row, then focus new Description; implement Add line with the same committed focus behavior while preserving other unsaved drafts.
+- [x] 10.6 Implement Shift+Enter and Add line as local blank-row insertion directly below the active row, focus its Description, and persist it only through Save or Publish while preserving other unsaved drafts.
 - [ ] 10.7 Implement row removal with an accessible action, appropriate confirmation only where ambiguity warrants it, and deterministic same-column next/previous/Add focus restoration.
 - [x] 10.8 Build the aligned totals panel for subtotal, negative discount, tax, divider, and emphasized grand total, driven by immediate preview then authoritative reconciliation.
 - [x] 10.9 Remove all line inputs/add/remove controls for finalized documents while preserving the same readable table geometry.

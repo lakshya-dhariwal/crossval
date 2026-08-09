@@ -21,7 +21,7 @@ type EditorRowProps = {
   lineIndex: number;
   fieldErrors: FieldErrors;
   onChange: (line: CalculatedLineItem, raw: RawLineItem) => void;
-  onReset: (line: CalculatedLineItem) => void;
+  onReset: (line: CalculatedLineItem, field: keyof RawLineItem) => void;
   onAdd: () => Promise<void>;
   onRemove: () => void | Promise<void>;
 };
@@ -57,7 +57,7 @@ export function EditorRow({
     if (event.key === "Escape") {
       event.preventDefault();
       setLocalError("");
-      onReset(line);
+      onReset(line, field);
       event.currentTarget.blur();
       return;
     }
@@ -74,18 +74,45 @@ export function EditorRow({
       void onAdd();
       return;
     }
-    const fields: Field[] = [
-      "description",
-      "quantity",
-      "unitPrice",
-      "discountValue",
-      "taxPercent",
-    ];
-    const next = fields[fields.indexOf(field) + 1];
-    if (next)
+    if (field === "unitPrice") {
       document
-        .querySelector<HTMLInputElement>(`[data-cell="${line.id}:${next}"]`)
+        .querySelector<HTMLElement>(`[data-cell="${line.id}:discountType"]`)
         ?.focus();
+      return;
+    }
+    const next = (
+      {
+        description: "quantity",
+        quantity: "unitPrice",
+        discountValue: "taxPercent",
+      } as Partial<Record<Field, Field>>
+    )[field];
+    const target = next
+      ? document.querySelector<HTMLElement>(`[data-cell="${line.id}:${next}"]`)
+      : document.querySelector<HTMLElement>(
+          `[data-line-index="${lineIndex + 1}"][data-field="description"]`,
+        );
+    target?.focus();
+  }
+
+  function discountTypeKey(event: KeyboardEvent<HTMLSelectElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onReset(line, "discountType");
+      event.currentTarget.blur();
+      return;
+    }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (event.shiftKey) {
+      void onAdd();
+      return;
+    }
+    const nextField =
+      draft.discountType === "none" ? "taxPercent" : "discountValue";
+    document
+      .querySelector<HTMLElement>(`[data-cell="${line.id}:${nextField}"]`)
+      ?.focus();
   }
 
   const errorId = `line-${line.id}-error`;
@@ -127,6 +154,8 @@ export function EditorRow({
       <td>
         <input
           data-cell={`${line.id}:description`}
+          data-line-index={lineIndex}
+          data-field="description"
           {...descriptionProps}
           value={draft.description}
           disabled={readOnly}
@@ -147,7 +176,7 @@ export function EditorRow({
           className={`${quantityProps.className} numeric`}
           type="number"
           min="1"
-          step="0.0001"
+          step="1"
           value={draft.quantity}
           disabled={readOnly}
           inputMode="decimal"
@@ -162,9 +191,7 @@ export function EditorRow({
           data-cell={`${line.id}:unitPrice`}
           {...unitPriceProps}
           className={`${unitPriceProps.className} numeric`}
-          type="number"
-          min="0"
-          step="0.0001"
+          type="text"
           value={draft.unitPrice}
           disabled={readOnly}
           inputMode="decimal"
@@ -180,9 +207,7 @@ export function EditorRow({
             data-cell={`${line.id}:discountValue`}
             {...discountProps}
             className={`${discountProps.className} numeric`}
-            type="number"
-            min="0"
-            step="0.0001"
+            type="text"
             value={draft.discountType === "none" ? "0" : draft.discountValue}
             disabled={readOnly || draft.discountType === "none"}
             inputMode="decimal"
@@ -192,6 +217,7 @@ export function EditorRow({
             aria-label={`Line ${line.position} discount value`}
           />
           <select
+            data-cell={`${line.id}:discountType`}
             className={`discount-select${errorFor("discountValue") ? " input-invalid" : ""}`}
             value={draft.discountType}
             disabled={readOnly}
@@ -200,10 +226,10 @@ export function EditorRow({
               update({
                 ...draft,
                 discountType,
-                discountValue:
-                  discountType === "none" ? "0" : draft.discountValue,
+                discountValue: "0",
               });
             }}
+            onKeyDown={discountTypeKey}
             aria-label={`Line ${line.position} discount type`}
             aria-invalid={Boolean(errorFor("discountValue"))}
             aria-describedby={errorFor("discountValue") ? errorId : undefined}

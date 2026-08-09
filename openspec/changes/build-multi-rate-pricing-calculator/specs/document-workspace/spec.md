@@ -71,7 +71,7 @@ Within editable grid cells, Enter SHALL focus the next logical editable cell wit
 #### Scenario: Shift+Enter adds a row
 
 - **WHEN** focus is in any editable cell and the user presses Shift+Enter
-- **THEN** a line is inserted immediately below and its Description receives focus
+- **THEN** a local blank line is inserted immediately below, its Description receives focus, and it is not persisted until Save or Publish
 
 #### Scenario: Escape cancels local edit
 

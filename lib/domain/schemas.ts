@@ -11,6 +11,18 @@ const nonNegative = (scale: number) =>
     (value) => !value.startsWith("-"),
     "Value cannot be negative.",
   );
+const dateOnly = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid issue date.")
+  .refine((value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    );
+  }, "Use a valid issue date.");
 const lineInputFields = {
   description: z.string().max(500),
   quantity: decimal(4, "Quantity must be a decimal with up to 4 places."),
@@ -86,9 +98,7 @@ export const finalizeDocumentSchema = z
   .object({
     title: z.string().max(240),
     customer: z.string().max(240),
-    issueDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid issue date."),
+    issueDate: dateOnly,
     version: z.number().int().positive(),
     lineItems: z
       .array(
@@ -104,9 +114,7 @@ export const metadataSchema = z
   .object({
     title: z.string().max(240),
     customer: z.string().max(240),
-    issueDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid issue date."),
+    issueDate: dateOnly,
     version: z.number().int().positive(),
   })
   .strict();
@@ -114,10 +122,7 @@ export const patchMetadataSchema = z
   .object({
     title: z.string().max(240).optional(),
     customer: z.string().max(240).optional(),
-    issueDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid issue date.")
-      .optional(),
+    issueDate: dateOnly.optional(),
     version: z.number().int().positive(),
   })
   .strict();
@@ -125,10 +130,7 @@ export const createDocumentSchema = z
   .object({
     title: z.string().max(240).optional(),
     customer: z.string().max(240).optional(),
-    issueDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional(),
+    issueDate: dateOnly.optional(),
   })
   .strict();
 export const documentQuerySchema = z.object({
@@ -137,8 +139,8 @@ export const documentQuerySchema = z.object({
 });
 export const reportQuerySchema = z
   .object({
-    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    from: dateOnly,
+    to: dateOnly,
   })
   .refine((value) => value.from <= value.to, {
     path: ["to"],

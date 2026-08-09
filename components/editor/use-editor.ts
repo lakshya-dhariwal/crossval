@@ -14,6 +14,7 @@ import {
 } from "@/lib/domain/calculations";
 import {
   errorMessage,
+  rawOf,
   type FieldErrors,
   type Metadata,
 } from "@/components/editor/editor-types";
@@ -38,6 +39,7 @@ export function useEditor(initial: DocumentDetail) {
   const metadataRef = useRef(metadata);
   const metadataDirty = useRef(false);
   const dirtyLines = useRef(new Map<string, RawLineItem>());
+  const structuralMutation = useRef(Promise.resolve());
   const [metadataDirtyState, setMetadataDirtyState] = useState(false);
   const [dirtyLineCount, setDirtyLineCount] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -187,18 +189,30 @@ export function useEditor(initial: DocumentDetail) {
     });
   }
 
-  function resetLineDraft(line: CalculatedLineItem) {
+  function resetLineDraft(line: CalculatedLineItem, field: keyof RawLineItem) {
     if (!line.id) return;
-    dirtyLines.current.delete(line.id);
-    syncDirtyLineCount();
     const serverLine = docRef.current.lineItems.find(
       (item) => item.id === line.id,
     );
     if (!serverLine) return;
+    const raw = { ...rawOf(line), [field]: rawOf(serverLine)[field] };
+    if (field === "discountType") raw.discountValue = serverLine.discountValue;
+    if (sameValue(raw, rawOf(serverLine))) dirtyLines.current.delete(line.id);
+    else dirtyLines.current.set(line.id, raw);
+    syncDirtyLineCount();
     setDoc((current) => {
-      const lineItems = current.lineItems.map((item) =>
-        item.id === line.id ? serverLine : item,
-      );
+      const lineItems = current.lineItems.map((item) => {
+        if (item.id !== line.id) return item;
+        try {
+          return {
+            ...calculateLineItem(raw),
+            id: item.id,
+            position: item.position,
+          };
+        } catch {
+          return { ...item, ...raw };
+        }
+      });
       return { ...current, ...calculateDocument(lineItems), lineItems };
     });
   }
@@ -293,23 +307,43 @@ export function useEditor(initial: DocumentDetail) {
         metadataSaved = true;
       }
 
-      for (const line of current.lineItems) {
+      const serverLineIds = new Set(
+        current.lineItems.flatMap((line) => (line.id ? [line.id] : [])),
+      );
+      let previousLineId: string | undefined;
+      for (const line of doc.lineItems) {
         if (!line.id) continue;
         const raw = lineSnapshots.get(line.id);
-        if (!raw) continue;
+        if (!raw) {
+          previousLineId = line.id;
+          continue;
+        }
         try {
+          const isNewLine = !serverLineIds.has(line.id);
           const response = await fetch(
-            `/api/documents/${current.id}/line-items/${line.id}`,
+            isNewLine
+              ? `/api/documents/${current.id}/line-items`
+              : `/api/documents/${current.id}/line-items/${line.id}`,
             {
-              method: "PATCH",
+              method: isNewLine ? "POST" : "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...raw, version: current.version }),
+              body: JSON.stringify(
+                isNewLine
+                  ? {
+                      ...raw,
+                      lineItemId: line.id,
+                      afterLineItemId: previousLineId,
+                    }
+                  : { ...raw, version: current.version },
+              ),
             },
           );
           current = await readDocumentResponse(
             response,
             "Could not save a line item.",
           );
+          serverLineIds.add(line.id);
+          previousLineId = line.id;
         } catch (cause) {
           const lineError = cause as Error & { fields?: FieldErrors };
           if (lineError.fields) {
@@ -368,55 +402,66 @@ export function useEditor(initial: DocumentDetail) {
     setConfirm(true);
   }
 
+  async function waitForStructuralMutation() {
+    const previous = structuralMutation.current;
+    let release = () => {};
+    structuralMutation.current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    return release;
+  }
+
   async function addLine(after?: string) {
     if (docRef.current.status === "finalized") return;
     setError("");
-    try {
-      const response = await fetch(
-        `/api/documents/${docRef.current.id}/line-items`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            description: "",
-            quantity: "1",
-            unitPrice: "0",
-            discountType: "none",
-            discountValue: "0",
-            taxPercent: "0",
-            afterLineItemId: after,
-          }),
-        },
-      );
-      const next = await readDocumentResponse(
-        response,
-        "Could not add a line item.",
-      );
-      reconcile(next, true);
-      const position = after
-        ? (next.lineItems.find((item) => item.id === after)?.position ??
-            next.lineItems.length - 1) + 1
-        : next.lineItems.length;
-      const target = next.lineItems.find((item) => item.position === position);
-      window.setTimeout(
-        () =>
-          target &&
-          document
-            .querySelector<HTMLInputElement>(
-              `[data-cell="${target.id}:description"]`,
-            )
-            ?.focus(),
-        80,
-      );
-    } catch (cause) {
-      reportError(errorMessage(cause, "Could not add a line item."));
-    }
+    const raw: RawLineItem = {
+      description: "",
+      quantity: "1",
+      unitPrice: "0",
+      discountType: "none",
+      discountValue: "0",
+      taxPercent: "0",
+    };
+    const id = crypto.randomUUID();
+    dirtyLines.current.set(id, raw);
+    syncDirtyLineCount();
+    setDoc((current) => {
+      const index = after
+        ? current.lineItems.findIndex((item) => item.id === after) + 1
+        : current.lineItems.length;
+      const lineItems = [
+        ...current.lineItems.slice(0, index),
+        { ...calculateLineItem(raw), id },
+        ...current.lineItems.slice(index),
+      ].map((line, position) => ({ ...line, position: position + 1 }));
+      return { ...current, ...calculateDocument(lineItems), lineItems };
+    });
+    window.setTimeout(
+      () =>
+        document
+          .querySelector<HTMLInputElement>(`[data-cell="${id}:description"]`)
+          ?.focus(),
+      0,
+    );
   }
 
   async function removeLine(line: CalculatedLineItem) {
     const linePosition = line.position ?? 1;
     const fallbackPosition = linePosition > 1 ? linePosition - 1 : 1;
     setRemoveTarget(null);
+    if (!docRef.current.lineItems.some((item) => item.id === line.id)) {
+      if (line.id) dirtyLines.current.delete(line.id);
+      syncDirtyLineCount();
+      setDoc((current) => {
+        const lineItems = current.lineItems
+          .filter((item) => item.id !== line.id)
+          .map((item, index) => ({ ...item, position: index + 1 }));
+        return { ...current, ...calculateDocument(lineItems), lineItems };
+      });
+      return;
+    }
+    const release = await waitForStructuralMutation();
     setWorking(true);
     setError("");
     try {
@@ -463,6 +508,7 @@ export function useEditor(initial: DocumentDetail) {
       reportError(errorMessage(cause, "Could not remove this line item."));
     } finally {
       setWorking(false);
+      release();
     }
   }
 
@@ -491,24 +537,28 @@ export function useEditor(initial: DocumentDetail) {
           }),
         },
       );
-      const json = (await response
-        .json()
-        .catch(() => null)) as ApiDocumentResponse | null;
-      if (!response.ok || !json?.data) {
-        const fields = json?.error?.fields ?? {};
-        setFieldErrors(fields);
-        if (response.status === 422) {
-          setConfirm(false);
-          focusFirstInvalid(fields);
-        }
-        throw new Error(
-          json?.error?.message ?? "Complete the document before publishing.",
-        );
-      }
-      reconcile(json.data);
+      const next = await readDocumentResponse(
+        response,
+        "Complete the document before publishing.",
+      );
+      reconcile(next);
       setConfirm(false);
       toast.success("Document published.");
     } catch (cause) {
+      const requestError = cause as Error & {
+        status?: number;
+        fields?: FieldErrors;
+      };
+      const fields = requestError.fields ?? {};
+      if (Object.keys(fields).length) setFieldErrors(fields);
+      if (requestError.status === 422) {
+        setConfirm(false);
+        focusFirstInvalid(fields);
+      }
+      if (requestError.status === 409) {
+        setConfirm(false);
+        await refreshAfterConflict(true);
+      }
       reportError(
         errorMessage(cause, "Complete the document before publishing."),
       );

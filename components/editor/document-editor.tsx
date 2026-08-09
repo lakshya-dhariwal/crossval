@@ -123,7 +123,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
             <div className="meta-field">
               <span className="meta-label">Status</span>
               <span className={`status ${doc.status}`}>
-                {doc.status === "finalized" ? "Final" : "Draft"}
+                {doc.status === "finalized" ? "Finalized" : "Draft"}
               </span>
             </div>
           </div>
@@ -215,7 +215,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
               </button>
             </>
           ) : (
-            <span className="status finalized">Final</span>
+            <span className="status finalized">Finalized</span>
           )}
         </div>
       </div>
@@ -293,7 +293,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
       <ConfirmDialog
         open={editor.confirm}
         title="Publish this document?"
-        description="Publishing saves your current changes and makes the document read-only until you change it back to a draft. You can still print it or use it as a template."
+        description="Publishing saves your current changes and changes the document status to Finalized. It becomes read-only until you change it back to a draft, but remains printable and reusable as a template."
         confirmLabel="Publish document"
         pending={editor.working || editor.saving}
         onCancel={() => editor.setConfirm(false)}

@@ -96,6 +96,14 @@ describe("request schemas", () => {
         .success,
     ).toBe(false);
     expect(
+      metadataSchema.safeParse({
+        title: "x",
+        customer: "y",
+        issueDate: "2026-02-30",
+        version: 1,
+      }).success,
+    ).toBe(false);
+    expect(
       reportQuerySchema.safeParse({ from: "2026-08-09", to: "2026-08-09" })
         .success,
     ).toBe(true);

@@ -296,11 +296,13 @@ export async function addLine(
   id: string,
   raw: RawLineItem,
   afterLineItemId?: string,
+  lineItemId?: string,
   db?: SupabaseClient,
 ) {
   const current = await getOwnedDocument(userId, id, db);
   assertEditable(current);
   const line = validateLine(raw);
+  if (lineItemId) line.id = lineItemId;
   const index = afterLineItemId
     ? current.lineItems.findIndex((item) => item.id === afterLineItemId) + 1
     : current.lineItems.length;
@@ -383,20 +385,11 @@ export async function finalizeDocument(
       "This document changed elsewhere. Refresh and try again.",
       409,
     );
-  const currentIds = new Set(
-    current.lineItems
-      .map((line) => line.id)
-      .filter((lineId): lineId is string => Boolean(lineId)),
-  );
   const submittedIds = new Set(values.lineItems.map((line) => line.id));
-  if (
-    submittedIds.size !== values.lineItems.length ||
-    currentIds.size !== submittedIds.size ||
-    [...currentIds].some((lineId) => !submittedIds.has(lineId))
-  )
+  if (submittedIds.size !== values.lineItems.length)
     throw new AppError(
       "DOCUMENT_VERSION_CONFLICT",
-      "The document lines changed elsewhere. Refresh and try again.",
+      "The document contains duplicate line items. Refresh and try again.",
       409,
     );
 

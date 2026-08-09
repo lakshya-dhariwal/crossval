@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: Params) {
   try {
     return await withUser(request, async (userId, db) => {
       const body = await readJson<Record<string, unknown>>(request);
-      const { afterLineItemId, ...raw } = body;
+      const { afterLineItemId, lineItemId, ...raw } = body;
       if (typeof raw.description !== "string")
         throw new AppError(
           "VALIDATION_ERROR",
@@ -27,6 +27,7 @@ export async function POST(request: Request, { params }: Params) {
           id,
           raw as never,
           typeof afterLineItemId === "string" ? afterLineItemId : undefined,
+          typeof lineItemId === "string" ? lineItemId : undefined,
           db,
         ),
         201,
