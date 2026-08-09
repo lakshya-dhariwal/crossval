@@ -876,7 +876,7 @@ h1 {
   position: fixed;
   inset: 0 0 auto;
   z-index: 1100;
-  height: 3px;
+  height: 5px;
   pointer-events: none;
   opacity: 0;
   background: var(--green);

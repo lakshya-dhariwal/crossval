@@ -63,7 +63,7 @@ export function AppProgress() {
     <>
       <AppProgressBar
         color="#168a4a"
-        height="3px"
+        height="5px"
         options={{ showSpinner: false }}
         shallowRouting
         delay={120}
