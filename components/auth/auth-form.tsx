@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,9 @@ export function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    router.prefetch("/documents");
+  }, [router]);
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -30,17 +33,9 @@ export function AuthForm() {
       toast.success("Check your email to confirm your account.", {
         duration: 9000,
       });
-    else router.push("/documents");
-  }
-  async function google() {
-    setBusy(true);
-    const { error } = await createClient().auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) {
-      toast.error(error.message);
-      setBusy(false);
+    else {
+      router.prefetch("/documents");
+      router.push("/documents");
     }
   }
   return (
@@ -53,16 +48,6 @@ export function AuthForm() {
           ? "Sign in to continue to your workspace."
           : "Start with a sample document you can make your own."}
       </p>
-      <button
-        className="button"
-        style={{ width: "100%", marginTop: 20 }}
-        onClick={google}
-        disabled={busy}
-      >
-        {busy && <LoaderCircle size={15} className="spin" aria-hidden="true" />}
-        Continue with Google
-      </button>
-      <div className="divider">or use email</div>
       <form className="form-stack" onSubmit={submit}>
         <label className="form-field">
           <span className="field-label">Email</span>

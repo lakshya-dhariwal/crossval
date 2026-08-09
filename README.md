@@ -4,11 +4,11 @@ Crossval is a small pricing-document workspace. It helps a user create a draft, 
 
 ## Product tour
 
-- Sign in with email/password or Google.
+- Sign in or create an account with email and password.
 - Open **Documents** to search and filter drafts and finalized documents.
 - Open a document to edit its metadata and spreadsheet-like line grid.
 - Use `None`, `%`, or `Fixed` for a line discount. Tax is a percentage.
-- Press Enter to save and move through cells. Shift+Enter adds a line below. Escape restores the last saved cell value.
+- Press Enter to move through cells. Shift+Enter adds a line below. Escape restores the last saved cell value. Use **Save** to keep a draft, or **Publish** to save and finalize in one action.
 - Finalize only after the required fields are complete. A finalized document is read-only until you explicitly change it back to a draft.
 - Draft actions include **Use as template** and **Delete document**. Finalized actions also include **Print / PDF**, **Export HTML**, **Change to draft**, and **Delete document**.
 - Use **Reports** for inclusive issue-date summaries; finalized documents are included by default, with an **Include drafts** toggle for working documents.
@@ -34,7 +34,7 @@ verified Supabase user
         -> RLS-protected PostgreSQL rows
 ```
 
-Server Components protect initial pages and load owner-scoped data. Route Handlers protect REST mutations. Browser components manage forms, filters, autosave, keyboard focus, menus, and print. The admin Supabase client is server-only and is used only after the session/user and document owner have been verified. The database RPC stores a complete server-calculated snapshot; it does not implement pricing formulas.
+Server Components protect initial pages and load owner-scoped data. Route Handlers protect REST mutations. Browser components manage forms, filters, local editor drafts, keyboard focus, menus, and print. The admin Supabase client is server-only and is used only after the session/user and document owner have been verified. The database RPC stores a complete server-calculated snapshot; it does not implement pricing formulas.
 
 Important source areas:
 
@@ -69,22 +69,21 @@ npx supabase db push --yes
 
 Configure Supabase Auth:
 
-1. Enable Email provider and choose whether email confirmation is required.
-2. Enable Google provider and add Google client credentials.
-3. Add `http://localhost:3000/auth/callback` and the deployed `https://your-domain/auth/callback` to the provider redirect allow-list.
-4. Set `NEXT_PUBLIC_SITE_URL` to the deployed origin in production.
+1. Enable the Email provider and choose whether email confirmation is required.
+2. Add `http://localhost:3000/auth/callback` and the deployed `https://your-domain/auth/callback` to the redirect allow-list.
+3. Set `NEXT_PUBLIC_SITE_URL` to the deployed origin in production.
 
 ## Environment
 
-| Variable | Used by | Notes |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | browser/server | Public project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser/server | Safe with correct RLS |
-| `SUPABASE_SECRET_KEY` | server only | Privileged key; never expose or commit |
-| `SUPABASE_ACCESS_TOKEN` | local CLI only | Temporary CLI token; not application auth |
-| `NEXT_PUBLIC_SITE_URL` | OAuth/deployment | Public application origin |
-| `DEMO_EMAIL` | demo seed | Not rendered in the UI |
-| `DEMO_PASSWORD` | demo seed | Share separately with the evaluator |
+| Variable                               | Used by         | Notes                                     |
+| -------------------------------------- | --------------- | ----------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | browser/server  | Public project URL                        |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser/server  | Safe with correct RLS                     |
+| `SUPABASE_SECRET_KEY`                  | server only     | Privileged key; never expose or commit    |
+| `SUPABASE_ACCESS_TOKEN`                | local CLI only  | Temporary CLI token; not application auth |
+| `NEXT_PUBLIC_SITE_URL`                 | Auth/deployment | Public application origin                 |
+| `DEMO_EMAIL`                           | demo seed       | Not rendered in the UI                    |
+| `DEMO_PASSWORD`                        | demo seed       | Share separately with the evaluator       |
 
 The demo account is created idempotently with:
 
@@ -127,20 +126,26 @@ Draft metadata and lines can be edited, added, reordered by insertion, or remove
 Every JSON error uses:
 
 ```json
-{"error":{"code":"VALIDATION_ERROR","message":"Please correct the highlighted fields.","fields":{"lineItems.0.quantity":["Quantity must be at least 1."]}}}
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Please correct the highlighted fields.",
+    "fields": { "lineItems.0.quantity": ["Quantity must be at least 1."] }
+  }
+}
 ```
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| GET/POST | `/api/documents` | List or create drafts |
-| GET/PATCH/DELETE | `/api/documents/:id` | Read/edit/delete a document |
-| POST | `/api/documents/:id/finalize` | Finalize once |
-| POST | `/api/documents/:id/revert` | Change a finalized document back to draft |
-| POST | `/api/documents/:id/duplicate` | Create a template copy |
-| GET/POST | `/api/documents/:id/line-items` | Read/add lines |
-| PATCH/DELETE | `/api/documents/:id/line-items/:lineItemId` | Edit/remove a line |
-| GET | `/api/reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Inclusive report |
-| GET | `/api/documents/:id/export/html` | Standalone escaped HTML |
+| Method           | Endpoint                                             | Purpose                                   |
+| ---------------- | ---------------------------------------------------- | ----------------------------------------- |
+| GET/POST         | `/api/documents`                                     | List or create drafts                     |
+| GET/PATCH/DELETE | `/api/documents/:id`                                 | Read/edit/delete a document               |
+| POST             | `/api/documents/:id/finalize`                        | Finalize once                             |
+| POST             | `/api/documents/:id/revert`                          | Change a finalized document back to draft |
+| POST             | `/api/documents/:id/duplicate`                       | Create a template copy                    |
+| GET/POST         | `/api/documents/:id/line-items`                      | Read/add lines                            |
+| PATCH/DELETE     | `/api/documents/:id/line-items/:lineItemId`          | Edit/remove a line                        |
+| GET              | `/api/reports/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | Inclusive report                          |
+| GET              | `/api/documents/:id/export/html`                     | Standalone escaped HTML                   |
 
 Print uses the browser's Print / Save as PDF flow rather than a server PDF renderer. HTML export embeds its own CSS and escapes all user text.
 
@@ -168,7 +173,7 @@ npm run build
 
 With the local server and Supabase environment loaded, `npm run smoke:api` signs in as the private demo account and checks ownership, CRUD, totals, exports, reports, cleanup, finalized read-only mutations, and finalized-to-draft/deletion lifecycle without printing credentials.
 
-The unit suite covers the assignment sample, half-up rounding, fixed-discount rejection, percentage-before-tax behavior, line-level rounding, boundary discounts, invalid numeric combinations, output formatting, and HTML escaping. `npm run security:audit` performs an AST-based source scan for dangerous code patterns and secret-like values. After configuring Supabase, also verify the migration, two-user RLS isolation, finalized triggers, OAuth, and the demo account with the browser flow.
+The unit suite covers the assignment sample, half-up rounding, fixed-discount rejection, percentage-before-tax behavior, line-level rounding, boundary discounts, invalid numeric combinations, output formatting, and HTML escaping. `npm run security:audit` performs an AST-based source scan for dangerous code patterns and secret-like values. After configuring Supabase, also verify the migration, two-user RLS isolation, finalized triggers, email confirmation, and the demo account with the browser flow.
 
 ## Assumptions and trade-offs
 
@@ -177,7 +182,7 @@ The unit suite covers the assignment sample, half-up rounding, fixed-discount re
 - Documents are intentionally single-user; teams, sharing, audit history, payments, invoice numbering, and co-editing are not part of this take-home app.
 - The initial document list is unpaginated because the brief targets take-home scale; the query boundary can later add cursor pagination.
 - The migration uses a server-calculated materialized snapshot RPC to keep line totals and document totals atomic without duplicating formulas in SQL.
-- Google provider credentials and the final deployment domain are external configuration steps and are not inventable in source code.
+- Email delivery settings and the final deployment domain are external configuration steps and are not inventable in source code.
 
 ## Deployment
 

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
+import { AppProgress } from "@/components/ui/app-progress";
 import { ToastHost } from "@/components/ui/toast-host";
 
 export const metadata: Metadata = {
@@ -15,6 +17,9 @@ export default function RootLayout({
       <body>
         {children}
         <ToastHost />
+        <Suspense fallback={null}>
+          <AppProgress />
+        </Suspense>
       </body>
     </html>
   );

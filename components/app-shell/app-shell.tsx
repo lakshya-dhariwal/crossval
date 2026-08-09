@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { FileText, BarChart3, LogOut } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 export function AppShell({
@@ -12,6 +13,9 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  useEffect(() => {
+    if (pathname.startsWith("/documents")) router.prefetch("/reports");
+  }, [pathname, router]);
   async function signOut() {
     await createClient().auth.signOut();
     router.push("/auth");

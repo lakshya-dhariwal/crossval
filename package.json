@@ -21,6 +21,7 @@
     "decimal.js": "latest",
     "lucide-react": "latest",
     "next": "latest",
+    "next-nprogress-bar": "^2.4.7",
     "react": "latest",
     "react-dom": "latest",
     "server-only": "latest",

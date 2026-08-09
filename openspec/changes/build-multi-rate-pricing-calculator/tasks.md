@@ -26,7 +26,7 @@
 - [x] 3.2 Implement middleware session-cookie refresh without treating middleware as authorization; exclude static assets while covering protected application routes.
 - [x] 3.3 Implement reusable `getUser`/`requireUser` server guards using verified `auth.getUser()`, protected app layout redirects, and HTTP 401 API behavior.
 - [x] 3.4 Implement the email-auth callback code exchange with a validated same-origin destination and useful failure redirect.
-- [ ] 3.5 Build the polished email/password sign-in and sign-up page with accessible labels, pending states, toast feedback, confirmation messaging, route prefetching, and no social login controls.
+- [x] 3.5 Build the polished email/password sign-in and sign-up page with accessible labels, pending states, toast feedback, confirmation messaging, route prefetching, and no social login controls.
 - [x] 3.6 Implement sign-out in the account area and verify signed-out users cannot render documents, reports, print routes, or protected API data.
 - [ ] 3.7 Configure and document Supabase email/password confirmation redirect URLs for localhost and deployment; manually verify each authentication path when credentials are available.
 
@@ -134,7 +134,7 @@
 
 ## 15. Documentation and Deployment Readiness
 
-- [ ] 15.1 Keep the README product overview, screenshot section, stack, prerequisites, exact local setup, Supabase project/link/migration commands, environment table, and email-authentication configuration aligned with the product.
+- [x] 15.1 Keep the README product overview, screenshot section, stack, prerequisites, exact local setup, Supabase project/link/migration commands, environment table, and email-authentication configuration aligned with the product.
 - [x] 15.2 Document the exact calculation policy with worked assignment example, decimal precision, round-half-up/per-line rounding, discount-before-tax, fixed-discount rejection, document aggregation, and server authority.
 - [x] 15.3 Document draft/finalized read-only behavior, explicit reversal/deletion, API enforcement, template behavior, endpoint/method/status overview, assumptions/trade-offs, and realistic pre-production improvements.
 - [x] 15.4 Document development, lint, typecheck, unit/integration tests, build, Vercel deployment/environment/migration sequence, rollback posture, and deployed URL placeholder until a real URL is verified.
