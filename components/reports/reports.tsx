@@ -196,36 +196,35 @@ export function Reports() {
         </div>
       )}
       <div className="metrics">
-        {loading
-          ? Array.from({ length: 4 }, (_, index) => (
-              <div className="metric" key={index} aria-label="Loading">
-                <span className="skeleton skeleton-card" />
-              </div>
-            ))
-          : [
-              ["Documents", String(report?.documentCount ?? 0), FileText],
-              [
-                "Grand total",
-                money(report?.grandTotal ?? "0.00"),
-                CircleDollarSign,
-              ],
-              ["Tax", money(report?.totalTax ?? "0.00"), ReceiptText],
-              [
-                "Discount",
-                money(report?.totalDiscount ?? "0.00"),
-                BadgePercent,
-              ],
-            ].map(([label, value, Icon]) => (
-              <div className="metric" key={label as string}>
-                <div className="metric-heading">
-                  <span className="metric-icon">
-                    <Icon size={16} aria-hidden="true" />
-                  </span>
-                  <div className="metric-label">{label as string}</div>
-                </div>
-                <div className="metric-value numeric">{value as string}</div>
-              </div>
-            ))}
+        {[
+          ["Documents", String(report?.documentCount ?? 0), FileText],
+          [
+            "Grand total",
+            money(report?.grandTotal ?? "0.00"),
+            CircleDollarSign,
+          ],
+          ["Tax", money(report?.totalTax ?? "0.00"), ReceiptText],
+          ["Discount", money(report?.totalDiscount ?? "0.00"), BadgePercent],
+        ].map(([label, value, Icon]) => (
+          <div className="metric" key={label as string}>
+            <div className="metric-heading">
+              <span className="metric-icon">
+                <Icon size={16} aria-hidden="true" />
+              </span>
+              <div className="metric-label">{label as string}</div>
+            </div>
+            <div className="metric-value numeric">
+              {loading ? (
+                <span
+                  className="skeleton skeleton-metric"
+                  aria-label="Loading"
+                />
+              ) : (
+                (value as string)
+              )}
+            </div>
+          </div>
+        ))}
       </div>
       <section className="surface table-wrap">
         <table className="data-table report-table">

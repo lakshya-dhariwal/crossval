@@ -94,7 +94,7 @@ export async function getOwnedFinalizedDocument(
   if (document.status !== "finalized")
     throw new AppError(
       "OUTPUT_NOT_AVAILABLE",
-      "Print and export are available after the document is finalized.",
+      "PDF download and HTML export are available after the document is finalized.",
       409,
     );
   return document;
@@ -292,6 +292,7 @@ export async function updateDocument(
     customer?: string;
     issueDate?: string;
     version: number;
+    lineItems?: Array<RawLineItem & { id: string }>;
   },
   db?: SupabaseClient,
 ) {
@@ -303,7 +304,13 @@ export async function updateDocument(
       "This document changed elsewhere. Refresh and try again.",
       409,
     );
-  return persist(userId, current, current.lineItems, values, db);
+  const lines = values.lineItems
+    ? values.lineItems.map(({ id: lineId, ...raw }) => ({
+        ...validateLine(raw),
+        id: lineId,
+      }))
+    : current.lineItems;
+  return persist(userId, current, lines, values, db);
 }
 
 export async function addLine(

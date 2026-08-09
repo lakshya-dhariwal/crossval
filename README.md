@@ -13,7 +13,7 @@ Live application: https://crossval-pricing.vercel.app
 - Server-authoritative Decimal.js calculations.
 - Explicit **Save** for drafts.
 - **Publish** saves the current editor state and changes the document status to `finalized` in one atomic operation.
-- Finalized documents are read-only. Owners can change them back to `draft`, delete them, print them, export HTML, or use them as templates.
+- Finalized documents are read-only. Owners can change them back to `draft`, delete them, save a PDF, export HTML, or use them as templates.
 - Summary reports default to finalized documents and support an **Include drafts** option.
 - Keyboard-friendly line editing, confirmation modals, accessible validation, toasts, and loading states.
 
@@ -121,12 +121,13 @@ The browser may preview calculations, but the server validates raw inputs, recal
 Documents have exactly two statuses: `draft` and `finalized`.
 
 - Drafts are editable and support adding, editing, and removing line items.
-- Save stores the current draft. Unsaved local changes are not persisted across a refresh.
+- Adding, editing, and removing line items stays local until the explicit Save checkpoint. Unsaved local changes are not persisted across a refresh.
+- Save submits the complete draft snapshot in one request; lines omitted from that snapshot are removed transactionally by the server, so removing a line does not issue a separate delete request.
 - Publish sends the current metadata and line-item snapshot, validates it, recalculates totals, saves it, and sets status to `finalized` atomically.
 - Finalized documents reject metadata and line-item mutations with HTTP 409 and a clear error.
 - Owners may explicitly change a finalized document back to draft or delete it.
 - Template duplication creates a new draft with new IDs and does not modify the source.
-- Print and HTML export are available for finalized documents.
+- PDF download and HTML export are available for finalized documents. Both actions stay on the current page; the PDF uses the same styled document surface as the HTML output.
 
 | Method                   | Endpoint                                             | Purpose                                     |
 | ------------------------ | ---------------------------------------------------- | ------------------------------------------- |

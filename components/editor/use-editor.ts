@@ -39,7 +39,6 @@ export function useEditor(initial: DocumentDetail) {
   const metadataRef = useRef(metadata);
   const metadataDirty = useRef(false);
   const dirtyLines = useRef(new Map<string, RawLineItem>());
-  const structuralMutation = useRef(Promise.resolve());
   const [metadataDirtyState, setMetadataDirtyState] = useState(false);
   const [dirtyLineCount, setDirtyLineCount] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -48,9 +47,7 @@ export function useEditor(initial: DocumentDetail) {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [menu, setMenu] = useState(false);
   const [confirm, setConfirm] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState<CalculatedLineItem | null>(
-    null,
-  );
+  const deletedLineIds = useRef(new Set<string>());
   const [deleteRequested, setDeleteRequested] = useState(false);
   const hasUnsavedChanges = metadataDirtyState || dirtyLineCount > 0;
 
@@ -60,32 +57,36 @@ export function useEditor(initial: DocumentDetail) {
   }
 
   function syncDirtyLineCount() {
-    setDirtyLineCount(dirtyLines.current.size);
+    setDirtyLineCount(dirtyLines.current.size + deletedLineIds.current.size);
   }
 
   function mergeDraftLines(serverDocument: DocumentDetail) {
     const existingIds = new Set(
-      serverDocument.lineItems.flatMap((line) => (line.id ? [line.id] : [])),
+      serverDocument.lineItems
+        .filter((line) => !line.id || !deletedLineIds.current.has(line.id))
+        .flatMap((line) => (line.id ? [line.id] : [])),
     );
     for (const id of dirtyLines.current.keys()) {
       if (!existingIds.has(id)) dirtyLines.current.delete(id);
     }
     syncDirtyLineCount();
 
-    const lineItems = serverDocument.lineItems.map((line) => {
-      if (!line.id) return line;
-      const raw = dirtyLines.current.get(line.id);
-      if (!raw) return line;
-      try {
-        return {
-          ...calculateLineItem(raw),
-          id: line.id,
-          position: line.position,
-        };
-      } catch {
-        return { ...line, ...raw };
-      }
-    });
+    const lineItems = serverDocument.lineItems
+      .filter((line) => !line.id || !deletedLineIds.current.has(line.id))
+      .map((line) => {
+        if (!line.id) return line;
+        const raw = dirtyLines.current.get(line.id);
+        if (!raw) return line;
+        try {
+          return {
+            ...calculateLineItem(raw),
+            id: line.id,
+            position: line.position,
+          };
+        } catch {
+          return { ...line, ...raw };
+        }
+      });
     return {
       ...serverDocument,
       ...calculateDocument(lineItems),
@@ -110,6 +111,7 @@ export function useEditor(initial: DocumentDetail) {
     }
 
     dirtyLines.current.clear();
+    deletedLineIds.current.clear();
     syncDirtyLineCount();
     metadataDirty.current = false;
     setMetadataDirtyState(false);
@@ -273,8 +275,10 @@ export function useEditor(initial: DocumentDetail) {
       return true;
 
     const metadataSnapshot = { ...metadataRef.current };
-    const shouldSaveMetadata = metadataDirty.current;
-    const lineSnapshots = new Map(dirtyLines.current);
+    const lineSnapshots = new Map<string, RawLineItem>();
+    for (const line of doc.lineItems) {
+      if (line.id) lineSnapshots.set(line.id, rawOf(line));
+    }
     const localFields = validateLineDrafts(lineSnapshots);
     if (Object.keys(localFields).length) {
       setFieldErrors(localFields);
@@ -287,84 +291,26 @@ export function useEditor(initial: DocumentDetail) {
     setError("");
     setFieldErrors({});
     let current = docRef.current;
-    let metadataSaved = false;
-    const savedLines = new Map<string, RawLineItem>();
+    let committed = false;
 
     try {
-      if (shouldSaveMetadata) {
-        const response = await fetch(`/api/documents/${current.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...metadataSnapshot,
-            version: current.version,
-          }),
-        });
-        current = await readDocumentResponse(
-          response,
-          "Could not save document details.",
-        );
-        metadataSaved = true;
-      }
-
-      const serverLineIds = new Set(
-        current.lineItems.flatMap((line) => (line.id ? [line.id] : [])),
+      const response = await fetch(`/api/documents/${current.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...metadataSnapshot,
+          version: current.version,
+          lineItems: doc.lineItems.map((line) => ({
+            id: line.id,
+            ...rawOf(line),
+          })),
+        }),
+      });
+      current = await readDocumentResponse(
+        response,
+        "Could not save this document.",
       );
-      let previousLineId: string | undefined;
-      for (const line of doc.lineItems) {
-        if (!line.id) continue;
-        const raw = lineSnapshots.get(line.id);
-        if (!raw) {
-          previousLineId = line.id;
-          continue;
-        }
-        try {
-          const isNewLine = !serverLineIds.has(line.id);
-          const response = await fetch(
-            isNewLine
-              ? `/api/documents/${current.id}/line-items`
-              : `/api/documents/${current.id}/line-items/${line.id}`,
-            {
-              method: isNewLine ? "POST" : "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(
-                isNewLine
-                  ? {
-                      ...raw,
-                      lineItemId: line.id,
-                      afterLineItemId: previousLineId,
-                    }
-                  : { ...raw, version: current.version },
-              ),
-            },
-          );
-          current = await readDocumentResponse(
-            response,
-            "Could not save a line item.",
-          );
-          serverLineIds.add(line.id);
-          previousLineId = line.id;
-        } catch (cause) {
-          const lineError = cause as Error & { fields?: FieldErrors };
-          if (lineError.fields) {
-            const index = doc.lineItems.findIndex(
-              (item) => item.id === line.id,
-            );
-            lineError.fields = Object.fromEntries(
-              Object.entries(lineError.fields).map(([field, messages]) => [
-                field.startsWith("lineItems.")
-                  ? field
-                  : `lineItems.${Math.max(0, index)}.${field}`,
-                messages,
-              ]),
-            );
-          }
-          throw cause;
-        }
-        savedLines.set(line.id, raw);
-      }
-
-      setError("");
+      committed = true;
       toast.success("Document saved.");
       return true;
     } catch (cause) {
@@ -383,33 +329,13 @@ export function useEditor(initial: DocumentDetail) {
       reportError(errorMessage(cause, "Could not save this document."));
       return false;
     } finally {
-      if (metadataSaved && sameValue(metadataRef.current, metadataSnapshot)) {
-        metadataDirty.current = false;
-        setMetadataDirtyState(false);
-      }
-      for (const [id, savedRaw] of savedLines) {
-        if (sameValue(dirtyLines.current.get(id), savedRaw)) {
-          dirtyLines.current.delete(id);
-        }
-      }
-      syncDirtyLineCount();
-      reconcile(current, true);
+      reconcile(current, !committed);
       setSaving(false);
     }
   }
 
   function requestPublish() {
     setConfirm(true);
-  }
-
-  async function waitForStructuralMutation() {
-    const previous = structuralMutation.current;
-    let release = () => {};
-    structuralMutation.current = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    await previous;
-    return release;
   }
 
   async function addLine(after?: string) {
@@ -446,70 +372,47 @@ export function useEditor(initial: DocumentDetail) {
     );
   }
 
-  async function removeLine(line: CalculatedLineItem) {
+  function removeLine(line: CalculatedLineItem) {
     const linePosition = line.position ?? 1;
     const fallbackPosition = linePosition > 1 ? linePosition - 1 : 1;
-    setRemoveTarget(null);
-    if (!docRef.current.lineItems.some((item) => item.id === line.id)) {
-      if (line.id) dirtyLines.current.delete(line.id);
-      syncDirtyLineCount();
-      setDoc((current) => {
-        const lineItems = current.lineItems
-          .filter((item) => item.id !== line.id)
-          .map((item, index) => ({ ...item, position: index + 1 }));
-        return { ...current, ...calculateDocument(lineItems), lineItems };
-      });
-      return;
+    if (
+      line.id &&
+      docRef.current.lineItems.some((item) => item.id === line.id)
+    ) {
+      deletedLineIds.current.add(line.id);
     }
-    const release = await waitForStructuralMutation();
-    setWorking(true);
+    if (line.id) dirtyLines.current.delete(line.id);
+    syncDirtyLineCount();
     setError("");
-    try {
-      const response = await fetch(
-        `/api/documents/${docRef.current.id}/line-items/${line.id}`,
-        {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ version: docRef.current.version }),
-        },
-      );
-      if (!response.ok) {
-        const json = (await response
-          .json()
-          .catch(() => null)) as ApiDocumentResponse | null;
-        throw new Error(
-          json?.error?.message ?? "Could not remove this line item.",
-        );
-      }
-      const latest = await fetch(`/api/documents/${docRef.current.id}`);
-      const next = await readDocumentResponse(
-        latest,
-        "The document could not be refreshed.",
-      );
-      if (line.id) dirtyLines.current.delete(line.id);
-      reconcile(next, true);
-      const target =
-        next.lineItems.find((item) => item.position === fallbackPosition) ??
-        next.lineItems[next.lineItems.length - 1];
-      window.setTimeout(
-        () =>
-          target
-            ? document
-                .querySelector<HTMLInputElement>(
-                  `[data-cell="${target.id}:description"]`,
-                )
-                ?.focus()
-            : document
-                .querySelector<HTMLButtonElement>('[data-action="add-line"]')
-                ?.focus(),
-        80,
-      );
-    } catch (cause) {
-      reportError(errorMessage(cause, "Could not remove this line item."));
-    } finally {
-      setWorking(false);
-      release();
-    }
+    const nextLineItems = doc.lineItems
+      .filter((item) => item.id !== line.id)
+      .map((item, index) => ({ ...item, position: index + 1 }));
+    setDoc((current) => {
+      const currentLineItems = current.lineItems
+        .filter((item) => item.id !== line.id)
+        .map((item, index) => ({ ...item, position: index + 1 }));
+      return {
+        ...current,
+        ...calculateDocument(currentLineItems),
+        lineItems: currentLineItems,
+      };
+    });
+    const target =
+      nextLineItems.find((item) => item.position === fallbackPosition) ??
+      nextLineItems[nextLineItems.length - 1];
+    window.setTimeout(
+      () =>
+        target
+          ? document
+              .querySelector<HTMLInputElement>(
+                `[data-cell="${target.id}:description"]`,
+              )
+              ?.focus()
+          : document
+              .querySelector<HTMLButtonElement>('[data-action="add-line"]')
+              ?.focus(),
+      80,
+    );
   }
 
   async function finalize() {
@@ -656,8 +559,6 @@ export function useEditor(initial: DocumentDetail) {
     setMenu,
     confirm,
     setConfirm,
-    removeTarget,
-    setRemoveTarget,
     deleteRequested,
     setDeleteRequested,
     working,

@@ -38,7 +38,7 @@ The Documents screen SHALL provide heading, supporting copy, New document action
 
 ### Requirement: Inline metadata editor
 
-The editor SHALL show a Documents/title breadcrumb, large inline title, inline Customer and Issue date controls, quiet Status label, status-aware Actions menu, and separate Save and Publish actions for drafts. Draft actions SHALL omit print/export; finalized actions SHALL include print/export, Change to draft, Use as template, and Delete document. Metadata changes SHALL remain local until Save is activated, obvious invalid fields SHALL display restrained inline messages after validation, and finalized metadata SHALL render read-only.
+The editor SHALL show a Documents/title breadcrumb, large inline title, inline Customer and Issue date controls, quiet Status label, status-aware Actions menu, and separate Save and Publish actions for drafts. Draft actions SHALL omit PDF/HTML export; finalized actions SHALL include in-place PDF/HTML export, Change to draft, Use as template, and Delete document. Metadata changes SHALL remain local until Save is activated, obvious invalid fields SHALL display restrained inline messages after validation, and finalized metadata SHALL render read-only.
 
 #### Scenario: Metadata save succeeds
 
@@ -94,7 +94,7 @@ Metadata and line-item field edits SHALL remain local until the user activates S
 
 ### Requirement: Finalization confirmation
 
-Choosing Finalize SHALL open an accessible, focus-trapped confirmation dialog explaining that the document becomes read-only while remaining printable and reusable as a template. Cancel SHALL restore trigger focus; confirmation SHALL expose a pending state and prevent duplicate submission.
+Choosing Publish SHALL open an accessible, focus-trapped confirmation dialog explaining that the document becomes Finalized and read-only while remaining available for PDF download and reusable as a template. Cancel SHALL restore trigger focus; confirmation SHALL expose a pending state and prevent duplicate submission.
 
 #### Scenario: User confirms finalization
 

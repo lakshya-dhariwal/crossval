@@ -7,7 +7,6 @@ import {
   FileDown,
   LoaderCircle,
   Plus,
-  Printer,
   RotateCcw,
   Save,
   Send,
@@ -18,6 +17,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EditorRow } from "@/components/editor/editor-row";
 import { money } from "@/components/editor/editor-types";
 import { useEditor } from "@/components/editor/use-editor";
+import { PdfDownloadButton } from "@/components/outputs/pdf-download-button";
 
 export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
   const editor = useEditor(initial);
@@ -143,14 +143,12 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
               <div className="menu" role="menu">
                 {doc.status === "finalized" && (
                   <>
-                    <Link
+                    <PdfDownloadButton
+                      documentId={doc.id}
+                      filename={doc.title}
                       className="menu-item"
-                      role="menuitem"
-                      href={`/documents/${doc.id}/print`}
                       onClick={() => editor.setMenu(false)}
-                    >
-                      <Printer size={15} /> Print / PDF
-                    </Link>
+                    />
                     <a
                       className="menu-item"
                       role="menuitem"
@@ -250,7 +248,7 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
                     onChange={editor.updateLineDraft}
                     onReset={editor.resetLineDraft}
                     onAdd={() => editor.addLine(line.id)}
-                    onRemove={() => editor.setRemoveTarget(line)}
+                    onRemove={() => editor.removeLine(line)}
                   />
                 ))}
               </tbody>
@@ -293,24 +291,12 @@ export function DocumentEditor({ initial }: { initial: DocumentDetail }) {
       <ConfirmDialog
         open={editor.confirm}
         title="Publish this document?"
-        description="Publishing saves your current changes and changes the document status to Finalized. It becomes read-only until you change it back to a draft, but remains printable and reusable as a template."
+        description="Publishing saves your current changes and changes the document status to Finalized. It becomes read-only until you change it back to a draft, but remains available for PDF download and template reuse."
         confirmLabel="Publish document"
         pendingLabel="Publishing…"
         pending={editor.working || editor.saving}
         onCancel={() => editor.setConfirm(false)}
         onConfirm={() => void editor.finalize()}
-      />
-      <ConfirmDialog
-        open={Boolean(editor.removeTarget)}
-        title="Remove this line item?"
-        description="This line item and its calculated amounts will be removed from the document."
-        confirmLabel="Remove line item"
-        danger
-        pending={editor.working}
-        onCancel={() => editor.setRemoveTarget(null)}
-        onConfirm={() => {
-          if (editor.removeTarget) void editor.removeLine(editor.removeTarget);
-        }}
       />
       <ConfirmDialog
         open={editor.deleteRequested}

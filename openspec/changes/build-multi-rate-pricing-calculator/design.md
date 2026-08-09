@@ -32,7 +32,7 @@ The public Supabase URL and publishable key are browser-safe. The supplied secre
 **Non-Goals:**
 
 - Multiple currencies, locale-aware tax compliance, invoice numbering, payments, email delivery, audit history, real-time co-editing, offline editing, or organization/team sharing.
-- Exact server-generated PDF binaries; browser Print/Save as PDF is the required PDF workflow.
+- Exact server-generated PDF binaries; an in-place browser PDF download generated from the standalone HTML output is the required PDF workflow.
 - Table virtualization or phone-first editing. The app remains usable at laptop widths and offers controlled horizontal scrolling only inside the line-item grid when genuinely necessary.
 - Direct public use of privileged database mutation functions. The documented REST API is the supported mutation surface.
 - Installing a broad UI kit. Use small accessible primitives only for dialog/menu/tooltip behavior that is costly to implement correctly.
@@ -41,7 +41,7 @@ The public Supabase URL and publishable key are browser-safe. The supplied secre
 
 ### 1. Application shape and dependency boundaries
 
-Use the latest stable Next.js App Router with strict TypeScript and Tailwind CSS. Keep Server Components as the default for route protection, initial page data, and static layout. Use Client Components only for authentication form interaction, filters, local editor state, menus/dialogs, route/request progress, report controls, downloading, and `window.print()`.
+Use the latest stable Next.js App Router with strict TypeScript and Tailwind CSS. Keep Server Components as the default for route protection, initial page data, and static layout. Use Client Components only for authentication form interaction, filters, local editor state, menus/dialogs, route/request progress, report controls, and in-place downloading.
 
 Recommended dependencies:
 
@@ -273,7 +273,7 @@ Documents list filters should be URL-backed query state for refresh/share behavi
 
 Reports use date-only `YYYY-MM-DD` strings and an inclusive Supabase query. Aggregate from the exact returned rows with Decimal on the server, or use a SQL view/RPC that returns both rows and aggregates from one snapshot. Do not calculate summary cards from a separately filtered client list. Default range is today minus 29 days through today (30 inclusive days).
 
-The print page is a protected Server Component with separate print CSS and a tiny client Print button. Use semantic table markup and `break-inside: avoid` for rows/totals where practical. HTML export uses the same neutral output view model and formatting helpers, then renders through a dedicated escaped string/template function; it must not reuse React app markup or depend on Tailwind CSS.
+The PDF action stays on the current page. It fetches the protected standalone HTML export, renders that document in an off-screen frame, and saves it through the client PDF library. HTML export uses the same neutral output view model and formatting helpers, then renders through a dedicated escaped string/template function; it must not reuse React app markup or depend on Tailwind CSS.
 
 ### 13. Testing and verification strategy
 

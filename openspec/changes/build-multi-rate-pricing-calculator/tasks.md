@@ -75,7 +75,7 @@
 - [x] 8.1 Build the compact authenticated shell with Crossval identity, Documents/Reports navigation, responsive laptop behavior, active states, account email, and accessible sign-out.
 - [x] 8.2 Build the Documents page header, supporting copy, New document action, and URL-backed debounced title/customer search plus All/Draft/Finalized filtering.
 - [x] 8.3 Build the semantic white document table with all specified columns, 40-44px rows, quiet statuses, tabular right-aligned totals, formatted dates, row navigation, and stable loading skeletons.
-- [x] 8.4 Build status-aware row actions: draft Use as template/Delete document, finalized Print / PDF/Export HTML/Change to draft/Delete document; prevent menu clicks from opening the row and keep menus outside the scroll clip.
+- [x] 8.4 Build status-aware row actions: draft Use as template/Delete document, finalized in-place Save PDF/Export HTML/Change to draft/Delete document; prevent menu clicks from opening the row and keep menus outside the scroll clip.
 - [x] 8.5 Implement create-and-navigate, duplicate-and-navigate, draft deletion confirmation, export failure feedback, and document-level toasts only for meaningful actions.
 - [x] 8.6 Implement distinct no-documents, no-filter-results, recoverable error, and loading states without giant cards or full-page spinners.
 - [ ] 8.7 Verify the list at normal and small laptop widths, keyboard-only menu use, visible focus, money alignment, search/filter combinations, and absence of page-level horizontal overflow.
@@ -86,7 +86,7 @@
 - [x] 9.2 Build inline title, Customer, and Issue date controls with restrained labels/required indicators, local draft values that persist only through Save, and field-associated errors.
 - [x] 9.3 Implement the explicit document save coordinator with dirty metadata/line tracking, server-version sequencing, partial-failure retention, saved/error states, conflict refetching, and stale-response rejection.
 - [x] 9.4 Require a clean saved draft before publishing and handle `DOCUMENT_FINALIZED` by showing the server message, refetching, and switching to read-only.
-- [x] 9.5 Render finalized metadata as non-input text, replace the CTA with a clear Finalized state, keep line mutation controls hidden, and retain finalized print/export/template/change-to-draft/delete actions.
+- [x] 9.5 Render finalized metadata as non-input text, replace the CTA with a clear Finalized state, keep line mutation controls hidden, and retain finalized PDF/HTML export/template/change-to-draft/delete actions.
 - [ ] 9.6 Add stable editor loading/not-found/error presentation and tests for metadata sequencing, inline validation, and finalized read-only rendering.
 
 ## 10. Spreadsheet Line-Item Editor
@@ -115,11 +115,11 @@
 - [x] 12.3 Build four restrained metrics and the matching semantic document table with issue date, title, customer, status, discount, tax, and grand total.
 - [ ] 12.4 Add stable loading skeletons, zeroed no-match state, recoverable API-error banner, and tests that metric sums exactly reconcile with boundary-inclusive rows.
 
-## 13. Print and Standalone HTML Output
+## 13. PDF and Standalone HTML Output
 
-- [x] 13.1 Create one output view model and formatting layer shared by print and HTML export so both use persisted authoritative values and escaped user content.
-- [x] 13.2 Build `/documents/:id/print` as an owner-protected, chrome-free invoice/quote-like page with title/customer/date/status, complete line details, totals, and a screen-only Print button.
-- [x] 13.3 Add A4 `@media print` rules for margins, monochrome safety, hidden controls/navigation, crisp tables, and sensible row/totals page breaking; inspect print preview with short and long documents.
+- [x] 13.1 Create one output view model and formatting layer shared by PDF and HTML export so both use persisted authoritative values and escaped user content.
+- [x] 13.2 Build an in-place Save PDF action that fetches the owner-protected HTML export, renders it off-screen, and downloads a chrome-free A4-oriented PDF with complete line details and totals.
+- [x] 13.3 Keep application chrome out of the PDF by rendering only the standalone HTML document, without browser print logic or print CSS.
 - [x] 13.4 Implement `GET /api/documents/:id/export/html` with a complete UTF-8 document, embedded CSS, escaped content, safe filename, attachment headers, owner-safe 404, and no authenticated CSS/assets.
 - [ ] 13.5 Wire list/editor output actions and add tests for draft/finalized availability, no source mutation, owner isolation, HTML escaping, content type/disposition, and totals parity.
 
@@ -145,7 +145,7 @@
 - [x] 16.1 Run the formatter/check, lint, strict typecheck, complete Vitest suite, SQL/RLS checks, and production build; fix every warning/error that indicates a real defect and record exact passing commands.
 - [ ] 16.2 Manually verify the complete email AUTH and cross-account isolation checklist using two accounts, documenting any provider step blocked by unavailable external credentials.
 - [ ] 16.3 Manually verify document creation, idempotent sample, explicit metadata/line saving, all grid keyboard actions, discounts/taxes/validation, deletion focus, server reconciliation, and exact sample totals.
-- [x] 16.4 Manually verify finalization validation/read-only/API conflicts, draft and finalized template copies, print/Save-as-PDF preview, independent HTML download, and source immutability.
+- [x] 16.4 Manually verify finalization validation/read-only/API conflicts, draft and finalized template copies, in-place PDF download, independent HTML download, and source immutability.
 - [ ] 16.5 Manually verify report boundaries/count/sums, loading/empty/error states, laptop layouts, keyboard focus, accessibility basics, console cleanliness, and absence of hydration errors.
 - [ ] 16.6 Deploy only if credentials and deployment authority are available, apply migrations first, configure auth callbacks/environment, smoke-test the live URL, and replace the README placeholder only after verification; otherwise report deployment as an explicit remaining external step.
 - [x] 16.7 Reconcile every completed checkbox against actual code/tests rather than intent, leave unfinished items unchecked, and provide the requested architecture, schema, endpoints, calculation policy, tests, assumptions, limitations, and exact Supabase/environment/deployment command summary.

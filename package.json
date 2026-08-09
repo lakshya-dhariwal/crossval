@@ -19,6 +19,7 @@
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "decimal.js": "latest",
+    "html2pdf.js": "^0.14.0",
     "lucide-react": "latest",
     "next": "latest",
     "next-nprogress-bar": "^2.4.7",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "latest",
+    "@types/html2pdf.js": "^0.10.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",

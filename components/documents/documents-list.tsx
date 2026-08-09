@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   Copy,
@@ -11,11 +10,11 @@ import {
   RotateCcw,
   Search,
   Trash2,
-  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { DocumentSummary } from "@/lib/domain/types";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PdfDownloadButton } from "@/components/outputs/pdf-download-button";
 const money = (value: string) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
     Number(value),
@@ -382,14 +381,15 @@ export function DocumentsList() {
           >
             {rows.find((row) => row.id === menu)?.status === "finalized" && (
               <>
-                <Link
+                <PdfDownloadButton
+                  documentId={menu}
+                  filename={
+                    rows.find((row) => row.id === menu)?.title ??
+                    "pricing-document"
+                  }
                   className="menu-item"
-                  role="menuitem"
-                  href={`/documents/${menu}/print`}
                   onClick={closeMenu}
-                >
-                  <Printer size={15} /> Print / PDF
-                </Link>
+                />
                 <a
                   className="menu-item"
                   role="menuitem"

@@ -11,7 +11,7 @@ The repository currently contains only the take-home brief and an empty OpenSpec
 - Add a typed REST API for documents, line items, finalization, duplication, reporting, and standalone HTML export with consistent validation and error envelopes.
 - Add an automatically provisioned, idempotent sample document for each new user with the assignment's expected totals.
 - Add date-range summary reporting whose aggregates reconcile exactly with the returned documents.
-- Add a dedicated printable A4 view, browser Print/Save-as-PDF flow, and downloadable standalone HTML output.
+- Add an in-place styled PDF download flow backed by the same standalone HTML output, plus downloadable standalone HTML output.
 - Add calculation and lifecycle tests, loading/error/accessibility polish, complete setup/deployment documentation, and final lint/typecheck/test/build verification.
 
 ## Capabilities
@@ -24,7 +24,7 @@ The repository currently contains only the take-home brief and an empty OpenSpec
 - `rest-api`: Authenticated REST resources, schemas, status codes, field errors, ownership behavior, and mutation response contracts.
 - `document-workspace`: Application shell, documents table, editor grid, explicit saving, keyboard interaction, navigation progress, loading/error states, and accessibility behavior.
 - `summary-reporting`: Inclusive issue-date filtering, reconciled aggregates, report table, defaults, and error/empty states.
-- `document-outputs`: Owner-only printable route, browser PDF workflow, and downloadable self-contained HTML representation.
+- `document-outputs`: Owner-only in-place PDF download workflow and downloadable self-contained HTML representation.
 
 ### Modified Capabilities
 

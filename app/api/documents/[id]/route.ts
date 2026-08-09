@@ -6,7 +6,7 @@ import {
   updateDocument,
 } from "@/lib/services/documents";
 import { AppError, jsonError } from "@/lib/api/errors";
-import { patchMetadataSchema } from "@/lib/domain/schemas";
+import { patchMetadataSchema, saveDocumentSchema } from "@/lib/domain/schemas";
 
 type Params = { params: Promise<{ id: string }> };
 export async function GET(request: Request, { params }: Params) {
@@ -20,14 +20,18 @@ export async function PATCH(request: Request, { params }: Params) {
   try {
     return await withUser(request, async (userId, db) => {
       const body = await readJson<unknown>(request);
-      const parsed = patchMetadataSchema.safeParse(body);
-      if (!parsed.success)
-        throw new AppError(
-          "VALIDATION_ERROR",
-          "Please correct the document fields.",
-          422,
-        );
-      return ok(await updateDocument(userId, id, parsed.data, db));
+      const snapshot = saveDocumentSchema.safeParse(body);
+      const metadata = patchMetadataSchema.safeParse(body);
+      if (!snapshot.success) {
+        if (!metadata.success)
+          throw new AppError(
+            "VALIDATION_ERROR",
+            "Please correct the document fields.",
+            422,
+          );
+        return ok(await updateDocument(userId, id, metadata.data, db));
+      }
+      return ok(await updateDocument(userId, id, snapshot.data, db));
     });
   } catch (error) {
     return jsonError(error);

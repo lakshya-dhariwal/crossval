@@ -126,6 +126,20 @@ export const patchMetadataSchema = z
     version: z.number().int().positive(),
   })
   .strict();
+export const saveDocumentSchema = z
+  .object({
+    title: z.string().max(240),
+    customer: z.string().max(240),
+    issueDate: dateOnly,
+    version: z.number().int().positive(),
+    lineItems: z.array(
+      z
+        .object({ id: z.string().uuid(), ...lineInputFields })
+        .strict()
+        .superRefine(refineLineInput),
+    ),
+  })
+  .strict();
 export const createDocumentSchema = z
   .object({
     title: z.string().max(240).optional(),
